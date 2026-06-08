@@ -50,7 +50,7 @@ class VitalsHomePage extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'An EMT instructor in your pocket — step-by-step patient assessment training + vitals practice tools.',
+                        'An EMT instructor in your pocket — learn vitals, learn assessment tools, choose EMT treatments, then run the patient.',
                         style: context.textStyles.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.92), height: 1.35),
                       ),
                       const SizedBox(height: 12),
@@ -153,22 +153,32 @@ class VitalsHomePage extends StatelessWidget {
           ),
 
           _HomeSectionSliver(
-            title: '1) Learn Vitals',
-            subtitle: 'Short EMT-friendly lessons + quick practice so you can recognize normal vs abnormal fast.',
+            title: '1) Vital Walkthroughs + Practice',
+            subtitle: 'Learn each vital, then practice collecting and documenting a full set.',
             icon: Icons.monitor_heart,
-            buttonText: 'Open Learn Vitals',
+            buttonText: 'Open Vitals',
             onTap: () => context.push(AppRoutes.learnVitals),
           ),
           _HomeSectionSliver(
-            title: '2) Assessment Tools',
-            subtitle: 'SAMPLE, OPQRST, DCAP-BTLS, primary/secondary assessment and more — with mini practice prompts.',
+            title: '2) Assessment Tools + Practice',
+            subtitle: 'SAMPLE, OPQRST, DCAP-BTLS, primary/secondary assessment and more.',
             icon: Icons.fact_check,
             buttonText: 'Open Tools',
             onTap: () => context.push(AppRoutes.assessmentTools),
           ),
           _HomeSectionSliver(
-            title: '3) Patient Assessment Walkthrough',
-            subtitle: 'Guided step-by-step patient assessment. This is the main trainer feature.',
+            title: '3) EMT Treatments & Meds',
+            subtitle: 'Learn what treatments may fit the findings, what to check first, and what to reassess.',
+            icon: Icons.medication,
+            buttonText: 'Open Treatments',
+            onTap: () {
+              context.read<AppState>().markModuleOpened(TrainingModule.treatments);
+              context.push(AppRoutes.treatments);
+            },
+          ),
+          _HomeSectionSliver(
+            title: '4) Patient Assessment Walkthrough',
+            subtitle: 'Guided step-by-step patient assessment. Gather findings, choose treatment, reassess, and report.',
             icon: Icons.route,
             buttonText: 'Start Walkthrough',
             onTap: () {
@@ -178,7 +188,7 @@ class VitalsHomePage extends StatelessWidget {
             accent: true,
           ),
           _HomeSectionSliver(
-            title: '4) Patient Assessment Cases',
+            title: '5) Patient Assessment Cases',
             subtitle: 'Free walkthrough cases now — with “Coming Soon” locked packs for future add-ons.',
             icon: Icons.collections_bookmark,
             buttonText: 'Browse Cases',
@@ -193,7 +203,7 @@ class VitalsHomePage extends StatelessWidget {
                   constraints: const BoxConstraints(maxWidth: 920),
                   child: EMSResultBox(
                     title: 'Existing simulators/tools are still included',
-                    message: 'You can access Blood Pressure, Pulse, Stroke, Pupils, Rule of Nines, and Breath Sounds from inside Learn Vitals / Assessment Tools.',
+                    message: 'You can access Blood Pressure, Pulse, Stroke, Pupils, Rule of Nines, Breath Sounds, and EMT Treatments from the learning pathway.',
                     kind: EMSResultKind.info,
                   ),
                 ),
@@ -257,7 +267,7 @@ class _PrimaryHeroCard extends StatelessWidget {
                     children: [
                       Text('Start a Patient Assessment Walkthrough', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
                       const SizedBox(height: 4),
-                      Text('One step at a time: scene size-up → primary → vitals → history → focused exam → treatment → report.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+                      Text('One step at a time: vitals → assessment tools → treatment decisions → reassessment → handoff report.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
                     ],
                   ),
                 ),
