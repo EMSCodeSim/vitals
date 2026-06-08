@@ -17,6 +17,8 @@ import 'package:emscode_sim_vitals/assessment_tools/tool_lesson_page.dart';
 import 'package:emscode_sim_vitals/walkthrough/walkthrough_home_page.dart';
 import 'package:emscode_sim_vitals/walkthrough/walkthrough_run_page.dart';
 import 'package:emscode_sim_vitals/cases/patient_assessment_cases_page.dart';
+import 'package:emscode_sim_vitals/treatments/treatments_hub_page.dart';
+import 'package:emscode_sim_vitals/treatments/treatment_lesson_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -102,6 +104,19 @@ class AppRouter {
         pageBuilder: (context, state) {
           final id = state.pathParameters['id'] ?? '';
           return MaterialPage(child: ToolLessonPage(toolId: id));
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.treatments,
+        name: 'treatments',
+        pageBuilder: (context, state) => const MaterialPage(child: TreatmentsHubPage()),
+      ),
+      GoRoute(
+        path: '${AppRoutes.treatments}/:id',
+        name: 'treatmentLesson',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return MaterialPage(child: TreatmentLessonPage(treatmentId: id));
         },
       ),
       GoRoute(
@@ -191,6 +206,7 @@ class AppRoutes {
   static const String learnVitals = '/learn-vitals';
   static const String fullVitalsSet = '/learn-vitals/full-set';
   static const String assessmentTools = '/assessment-tools';
+  static const String treatments = '/treatments';
   static const String walkthrough = '/walkthrough';
   static const String cases = '/cases';
   static const String randomCase = '/random-case';
