@@ -282,8 +282,8 @@ class WalkthroughCases {
         prompt: 'Appropriate EMT-level treatment choices include:',
         category: AssessmentCategory.treatment,
         kind: StepKind.multiSelect,
-        choices: ['Oxygen per protocol', 'Position of comfort', 'Request ALS if severe', 'Ignore work of breathing'],
-        correctChoiceIndexes: [0, 1, 2],
+        choices: ['Oxygen per protocol', 'Position of comfort', 'Albuterol assist/admin per protocol if indicated', 'Request ALS if severe', 'Ignore work of breathing'],
+        correctChoiceIndexes: [0, 1, 2, 3],
       ),
       WalkthroughStep(
         id: 'reassess2',
@@ -339,8 +339,8 @@ class WalkthroughCases {
         prompt: 'Appropriate EMT-level actions may include:',
         category: AssessmentCategory.treatment,
         kind: StepKind.multiSelect,
-        choices: ['Oxygen per protocol if needed', 'Position of comfort', 'Request ALS', 'Rapid transport'],
-        correctChoiceIndexes: [0, 1, 2, 3],
+        choices: ['Oxygen per protocol if needed', 'Position of comfort', 'Aspirin consideration after contraindication check', 'Nitroglycerin assist only if prescribed/protocol permits', 'Request ALS', 'Rapid transport'],
+        correctChoiceIndexes: [0, 1, 2, 3, 4, 5],
         critical: true,
       ),
       WalkthroughStep(
@@ -397,8 +397,8 @@ class WalkthroughCases {
         prompt: 'Appropriate actions include:',
         category: AssessmentCategory.treatment,
         kind: StepKind.multiSelect,
-        choices: ['Support airway/breathing', 'Request ALS if needed', 'Reassess mental status', 'Ignore confusion'],
-        correctChoiceIndexes: [0, 1, 2],
+        choices: ['Support airway/breathing', 'Check glucose if available', 'Oral glucose only if able to swallow and protocol allows', 'Request ALS if needed', 'Reassess mental status', 'Ignore confusion'],
+        correctChoiceIndexes: [0, 1, 2, 3, 4],
       ),
     ],
   );
@@ -445,8 +445,8 @@ class WalkthroughCases {
         prompt: 'Appropriate EMT care includes:',
         category: AssessmentCategory.treatment,
         kind: StepKind.multiSelect,
-        choices: ['Bleeding control', 'Splint as indicated', 'Reassess PMS', 'Ignore pain'],
-        correctChoiceIndexes: [0, 1, 2],
+        choices: ['Bleeding control', 'Splint as indicated', 'Pain/comfort measures per protocol', 'Reassess PMS', 'Ignore pain'],
+        correctChoiceIndexes: [0, 1, 2, 3],
       ),
     ],
   );
