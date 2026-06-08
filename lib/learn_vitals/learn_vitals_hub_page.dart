@@ -1,6 +1,7 @@
 import 'package:emscode_sim_vitals/learn_vitals/learn_vitals_models.dart';
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
+import 'package:emscode_sim_vitals/shared/normal_not_normal.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -38,24 +39,11 @@ class LearnVitalsHubPage extends StatelessWidget {
                   children: [
                     const _StepHeroCard(),
                     const SizedBox(height: 12),
-                    EMSSectionCard(
-                      title: '3) Complete a Full Vitals Set',
-                      subtitle: 'The main Step 1 practice: collect, interpret, score, and document a full set of vitals on one patient.',
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: FilledButton.icon(
-                          onPressed: () => context.push(AppRoutes.fullVitalsSet),
-                          style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
-                          icon: const Icon(Icons.assignment_turned_in, color: Colors.white),
-                          label: const Text('Start Full Vitals Set Practice', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
-                        ),
-                      ),
-                    ),
+                    const NormalNotNormalCard(compact: true),
                     const SizedBox(height: 12),
                     EMSSectionCard(
                       title: '1) Learn Each Vital',
-                      subtitle: 'Short EMT-friendly lessons. Each one explains meaning, normal range, concerning findings, documentation, and common mistakes.',
+                      subtitle: 'Start here if you are new. Each vital uses the same thinking pattern: normal/not normal, what is wrong, and why it matters.',
                       child: Column(
                         children: [
                           for (final v in VitalId.values) ...[
@@ -68,7 +56,7 @@ class LearnVitalsHubPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     EMSSectionCard(
                       title: '2) Practice Individual Skills',
-                      subtitle: 'Quick access to hands-on practice tools students can use before the full vital set.',
+                      subtitle: 'Practice hands-on skills before the full vital set. Experienced students can skip straight to practice.',
                       child: Column(
                         children: [
                           _PracticeLinkTile(
@@ -101,11 +89,36 @@ class LearnVitalsHubPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    EMSSectionCard(
+                      title: '3) Complete a Full Vitals Set',
+                      subtitle: 'Put the pieces together: collect vitals, decide normal/not normal, explain why, then document the patient picture.',
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: FilledButton.icon(
+                          onPressed: () => context.push(AppRoutes.fullVitalsSet),
+                          style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+                          icon: const Icon(Icons.assignment_turned_in, color: Colors.white),
+                          label: const Text('Start Full Vitals Set Practice', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.md),
                     EMSResultBox(
-                      title: 'Training path',
-                      message: 'This section now prepares the student for the later patient assessment walkthrough: first understand each vital, then collect a complete set, then start SAMPLE/OPQRST and treatment decisions.',
+                      title: 'Next step: Assessment Tools',
+                      message: 'New EMTs should master vitals first. If you already know vitals, skip ahead to assessment tools and start SAMPLE, OPQRST, primary assessment, and treatment decisions.',
                       kind: EMSResultKind.info,
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push(AppRoutes.assessmentTools),
+                        style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+                        icon: const Icon(Icons.fast_forward),
+                        label: const Text('Skip to Assessment Tools'),
+                      ),
                     ),
                   ],
                 ),
@@ -149,7 +162,7 @@ class _StepHeroCard extends StatelessWidget {
                 children: [
                   Text('Step 1 — Master the Vitals', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 6),
-                  Text('Learn what each vital means, practice collecting it, then complete a full set like you would on a real patient.', style: context.textStyles.bodyMedium?.copyWith(height: 1.4, color: cs.onSurfaceVariant)),
+                  Text('Learn what each vital means, decide normal vs not normal, explain why it matters, then complete a full set like you would on a real patient.', style: context.textStyles.bodyMedium?.copyWith(height: 1.4, color: cs.onSurfaceVariant)),
                 ],
               ),
             ),

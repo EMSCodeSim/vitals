@@ -4,6 +4,7 @@ import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/learn_vitals/learn_vitals_models.dart';
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
+import 'package:emscode_sim_vitals/shared/normal_not_normal.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -86,6 +87,8 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
                 child: Column(
                   children: [
                     EMSSectionCard(title: 'What it means', child: Text(lesson.whatItMeans, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
+                    const SizedBox(height: 12),
+                    _NormalNotNormalForVital(vital: lesson.vital),
                     const SizedBox(height: 12),
                     EMSSectionCard(title: 'Normal adult range', child: Text(lesson.normalRange, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
                     const SizedBox(height: 12),
@@ -230,6 +233,52 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
         onChanged: (v) => setState(() => _aaoAnswer = v),
       ),
     };
+  }
+}
+
+
+class _NormalNotNormalForVital extends StatelessWidget {
+  const _NormalNotNormalForVital({required this.vital});
+
+  final VitalId vital;
+
+  @override
+  Widget build(BuildContext context) {
+    final findings = switch (vital) {
+      VitalId.bloodPressure => const [
+        FindingInterpretation(label: 'BP 118/76', status: 'Normal: within typical adult range', why: 'Why: supports adequate perfusion when skin, pulse, and mentation also look good.', isNormal: true),
+        FindingInterpretation(label: 'BP 84/50', status: 'Not normal: low systolic pressure', why: 'Why: with weak pulse, cool/clammy skin, or altered mental status, this suggests poor perfusion/shock.', isNormal: false),
+      ],
+      VitalId.pulseRate => const [
+        FindingInterpretation(label: 'Pulse 78 strong and regular', status: 'Normal: adult rate and regular rhythm', why: 'Why: supports stable perfusion when BP, skin signs, and mentation also match.', isNormal: true),
+        FindingInterpretation(label: 'Pulse 110 weak and irregular', status: 'Not normal: fast and not regular', why: 'Why: could be pain, fever, dehydration, anxiety, shock, or cardiac rhythm issue. Correlate with BP, skin, complaint, and mental status.', isNormal: false),
+      ],
+      VitalId.respiratoryRate => const [
+        FindingInterpretation(label: 'RR 16, unlabored', status: 'Normal: adult rate and effort', why: 'Why: patient is ventilating at a typical rate without obvious distress.', isNormal: true),
+        FindingInterpretation(label: 'RR 32, shallow/labored', status: 'Not normal: fast with increased work', why: 'Why: may indicate hypoxia, respiratory distress, shock, pain, fever, anxiety, or fatigue.', isNormal: false),
+      ],
+      VitalId.skinSigns => const [
+        FindingInterpretation(label: 'Warm, pink, dry', status: 'Normal: good basic perfusion picture', why: 'Why: no immediate skin sign of shock or hypoxia when other findings agree.', isNormal: true),
+        FindingInterpretation(label: 'Pale, cool, clammy', status: 'Not normal: poor perfusion/stress response', why: 'Why: with rapid weak pulse or low BP, this is a shock concern until proven otherwise.', isNormal: false),
+      ],
+      VitalId.pupils => const [
+        FindingInterpretation(label: 'PERRL', status: 'Normal: equal and reactive', why: 'Why: no obvious pupil red flag, but still compare with mental status and complaint.', isNormal: true),
+        FindingInterpretation(label: 'Unequal/sluggish pupils', status: 'Not normal: neuro red flag', why: 'Why: may indicate head injury, stroke, or other neurologic problem. Document patient-left vs patient-right.', isNormal: false),
+      ],
+      VitalId.spo2 => const [
+        FindingInterpretation(label: 'SpO₂ 97% on room air', status: 'Normal: typical oxygen saturation', why: 'Why: reassuring only if breathing effort and mental status also look okay.', isNormal: true),
+        FindingInterpretation(label: 'SpO₂ 86% with cyanosis', status: 'Not normal: significant hypoxia', why: 'Why: this is an oxygenation problem. Treat the patient and reassess response per protocol.', isNormal: false),
+      ],
+      VitalId.avpu => const [
+        FindingInterpretation(label: 'Alert', status: 'Normal: responds normally without stimulation', why: 'Why: patient can participate in assessment if orientation also makes sense.', isNormal: true),
+        FindingInterpretation(label: 'Responds to pain only', status: 'Not normal: decreased level of consciousness', why: 'Why: consider hypoxia, shock, head injury, stroke, intoxication, or hypoglycemia.', isNormal: false),
+      ],
+      VitalId.aao => const [
+        FindingInterpretation(label: 'AAOx4', status: 'Normal: person, place, time, event', why: 'Why: patient is oriented to the expected questions.', isNormal: true),
+        FindingInterpretation(label: 'AAOx2', status: 'Not normal: missed time and event', why: 'Why: altered mentation can be from hypoxia, shock, stroke, head injury, sepsis, intoxication, or hypoglycemia.', isNormal: false),
+      ],
+    };
+    return FindingInterpretationBox(title: 'Normal / Not Normal / Why', findings: findings);
   }
 }
 

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
+import 'package:emscode_sim_vitals/shared/normal_not_normal.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -409,6 +410,8 @@ class _VitalsResultCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
+          FindingInterpretationBox(title: 'Expected interpretation', findings: _expectedInterpretations(vitalsCase.expected)),
+          const SizedBox(height: 12),
           Text('Correct documentation line', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
           SelectableText(vitalsCase.expected.documentationLine, style: context.textStyles.bodyMedium?.copyWith(height: 1.4)),
@@ -420,6 +423,65 @@ class _VitalsResultCard extends StatelessWidget {
       ),
     );
   }
+}
+
+
+List<FindingInterpretation> _expectedInterpretations(ExpectedVitals expected) {
+  final pulseNormal = expected.pulse >= 60 && expected.pulse <= 100 && expected.pulseQuality.contains('regular') && !expected.pulseQuality.contains('weak') && !expected.pulseQuality.contains('thready');
+  final rrNormal = expected.rr >= 12 && expected.rr <= 20;
+  final bpNormal = expected.sys >= 90 && expected.sys <= 120 && expected.dia >= 60 && expected.dia <= 80;
+  final spo2Normal = expected.spo2 >= 95;
+  final skinNormal = expected.skinSigns == 'warm/pink/dry';
+  final mentationNormal = expected.aao == 'AAOx4' && expected.avpu == 'A';
+
+  return [
+    FindingInterpretation(
+      label: 'Pulse ${expected.pulse} ${expected.pulseQuality}',
+      status: pulseNormal ? 'Normal: adult rate and regular/strong quality' : 'Not normal: ${_pulseReason(expected)}',
+      why: pulseNormal ? 'Why: supports stable perfusion when BP, skin signs, and mentation agree.' : 'Why: pulse changes should be matched to BP, skin signs, pain, fever, dehydration, shock, or cardiac concerns.',
+      isNormal: pulseNormal,
+    ),
+    FindingInterpretation(
+      label: 'RR ${expected.rr}/min',
+      status: rrNormal ? 'Normal: adult respiratory rate' : 'Not normal: ${expected.rr > 20 ? 'fast' : 'slow'} respiratory rate',
+      why: rrNormal ? 'Why: rate is reassuring if effort and SpO₂ are also reassuring.' : 'Why: abnormal RR can signal respiratory distress, hypoxia, shock, pain, anxiety, CNS depression, or fatigue.',
+      isNormal: rrNormal,
+    ),
+    FindingInterpretation(
+      label: 'BP ${expected.sys}/${expected.dia}',
+      status: bpNormal ? 'Normal: typical adult BP range' : 'Not normal: ${expected.sys < 90 ? 'low systolic pressure' : expected.sys > 140 ? 'elevated systolic pressure' : 'outside typical range'}',
+      why: bpNormal ? 'Why: adequate only when the rest of the patient picture also fits.' : 'Why: BP must be interpreted with pulse, skin signs, mental status, complaint, and trends.',
+      isNormal: bpNormal,
+    ),
+    FindingInterpretation(
+      label: 'SpO₂ ${expected.spo2}% RA',
+      status: spo2Normal ? 'Normal: typical oxygen saturation' : 'Not normal: low oxygen saturation',
+      why: spo2Normal ? 'Why: reassuring only if work of breathing is also normal.' : 'Why: low SpO₂ with distress or cyanosis needs oxygenation/ventilation decision-making and reassessment per protocol.',
+      isNormal: spo2Normal,
+    ),
+    FindingInterpretation(
+      label: 'Skin ${expected.skinSigns}',
+      status: skinNormal ? 'Normal: warm/pink/dry' : 'Not normal: perfusion or oxygenation concern',
+      why: skinNormal ? 'Why: no obvious skin red flag when other findings agree.' : 'Why: abnormal skin signs can point to shock, hypoxia, fever, sepsis, heat illness, or poor perfusion.',
+      isNormal: skinNormal,
+    ),
+    FindingInterpretation(
+      label: 'Mental status ${expected.avpu}/${expected.aao}',
+      status: mentationNormal ? 'Normal: alert and oriented' : 'Not normal: altered mental status',
+      why: mentationNormal ? 'Why: patient can participate in assessment.' : 'Why: altered mentation can come from hypoxia, shock, stroke, head injury, intoxication, hypoglycemia, or sepsis.',
+      isNormal: mentationNormal,
+    ),
+  ];
+}
+
+String _pulseReason(ExpectedVitals expected) {
+  final parts = <String>[];
+  if (expected.pulse > 100) parts.add('fast');
+  if (expected.pulse < 60) parts.add('slow');
+  if (expected.pulseQuality.contains('irregular')) parts.add('not regular');
+  if (expected.pulseQuality.contains('weak') || expected.pulseQuality.contains('thready')) parts.add('weak quality');
+  if (parts.isEmpty) return 'quality does not match a normal pulse picture';
+  return parts.join(' and ');
 }
 
 class _ResultLine extends StatelessWidget {
