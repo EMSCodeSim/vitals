@@ -103,6 +103,10 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    EMSSectionCard(title: 'What to document', child: Text(lesson.whatToDocument, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
+                    const SizedBox(height: 12),
+                    EMSSectionCard(title: 'Common student mistake', child: Text(lesson.commonStudentMistake, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
+                    const SizedBox(height: 12),
                     _QuickQuizCard(
                       prompt: lesson.quickQuizPrompt,
                       choices: lesson.quickQuizChoices,
