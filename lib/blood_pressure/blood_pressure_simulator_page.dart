@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:emscode_sim_vitals/blood_pressure/bp_beep_player.dart';
 import 'package:emscode_sim_vitals/blood_pressure/bp_gauge.dart';
+import 'package:emscode_sim_vitals/blood_pressure/bp_learn_walkthrough_page.dart';
 import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/dev/dev_flags.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
@@ -564,8 +565,12 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final mode = context.select<AppState, TrainingMode>((s) => s.mode);
+    if (mode == TrainingMode.learn) {
+      return const BpLearnWalkthroughPage();
+    }
+
+    final cs = Theme.of(context).colorScheme;
 
     final releaseLabel = !scenarioActive
         ? 'Release'
