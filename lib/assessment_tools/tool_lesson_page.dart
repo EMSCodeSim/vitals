@@ -99,7 +99,7 @@ class _ToolLessonPageState extends State<ToolLessonPage> {
                     ),
                     const SizedBox(height: 12),
                     EMSSectionCard(
-                      title: 'Abnormal findings may mean',
+                      title: 'If not normal, why it matters',
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
