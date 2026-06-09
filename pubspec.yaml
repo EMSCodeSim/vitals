@@ -2,7 +2,7 @@ name: emscode_sim_vitals
 description: "EMSCodeSim Vitals training app for EMT and paramedic assessment practice."
 publish_to: "none"
 
-version: 1.0.0+1
+version: 1.0.1
 
 environment:
   sdk: ^3.6.0
