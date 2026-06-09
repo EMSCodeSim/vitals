@@ -65,7 +65,7 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
 
     return EMSVitalsScaffold(
       title: lesson.vital.title,
-      subtitle: mode == TrainingMode.learn ? 'Learn mode: hints are ON' : mode == TrainingMode.practice ? 'Practice mode: coached reps' : 'Test mode: self-check at the end',
+      subtitle: 'Learn the vital first, then practice deciding normal or not normal and why it matters.',
       onInfoPressed: () {
         EMSInfoSheet.show(
           context,
@@ -86,7 +86,7 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: Column(
                   children: [
-                    EMSSectionCard(title: 'What it means', child: Text(lesson.whatItMeans, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
+                    EMSSectionCard(title: 'Learn: What it means', subtitle: 'Understand the finding before you practice it.', child: Text(lesson.whatItMeans, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
                     const SizedBox(height: 12),
                     _NormalNotNormalForVital(vital: lesson.vital),
                     const SizedBox(height: 12),
@@ -139,7 +139,11 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
                     ),
                     const SizedBox(height: 12),
 
+                    EMSSectionCard(title: 'Practice', subtitle: 'Apply the skill, then answer: normal or not normal, and why?'),
+                    const SizedBox(height: 12),
                     _practiceWidgetFor(lesson.vital, mode, instructor),
+                    const SizedBox(height: 12),
+                    _OptionalVitalFollowUpCard(vitalTitle: lesson.vital.title),
 
                     const SizedBox(height: 12),
                     SizedBox(
@@ -768,6 +772,69 @@ class _AaoPracticeCard extends StatelessWidget {
               kind: ok ? EMSResultKind.success : EMSResultKind.warning,
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionalVitalFollowUpCard extends StatefulWidget {
+  const _OptionalVitalFollowUpCard({required this.vitalTitle});
+  final String vitalTitle;
+
+  @override
+  State<_OptionalVitalFollowUpCard> createState() => _OptionalVitalFollowUpCardState();
+}
+
+class _OptionalVitalFollowUpCardState extends State<_OptionalVitalFollowUpCard> {
+  bool _showQuestions = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return EMSSectionCard(
+      title: 'Optional follow-up questions',
+      subtitle: 'Use these after practice if the student wants one more step.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => setState(() => _showQuestions = !_showQuestions),
+              icon: Icon(_showQuestions ? Icons.expand_less : Icons.expand_more),
+              label: Text(_showQuestions ? 'Hide follow-up questions' : 'Show follow-up questions'),
+            ),
+          ),
+          if (_showQuestions) ...[
+            const SizedBox(height: 12),
+            _QuestionLine(text: 'Is this ${widget.vitalTitle} finding normal or not normal?'),
+            const _QuestionLine(text: 'If it is not normal, what word describes the problem: fast, slow, weak, irregular, low, high, labored, or altered?'),
+            const _QuestionLine(text: 'Why does this matter for perfusion, oxygenation, mental status, or transport priority?'),
+            const _QuestionLine(text: 'What should you reassess next?'),
+            const SizedBox(height: 8),
+            Text('Example language: “Not normal: pulse 110 and irregular. It is fast and not regular, so I would compare it with BP, skin signs, complaint, and mental status.”', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35, fontStyle: FontStyle.italic)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _QuestionLine extends StatelessWidget {
+  const _QuestionLine({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.help_outline, size: 18, color: AppColors.emsBlue),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: context.textStyles.bodySmall?.copyWith(height: 1.35))),
         ],
       ),
     );
