@@ -1,7 +1,6 @@
 import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
-import 'package:emscode_sim_vitals/shared/normal_not_normal.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -12,7 +11,6 @@ class VitalsHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final mode = context.select<AppState, TrainingMode>((s) => s.mode);
     final instructor = context.select<AppState, bool>((s) => s.instructorMode);
 
@@ -25,91 +23,13 @@ class VitalsHomePage extends StatelessWidget {
             scrolledUnderElevation: 0,
             backgroundColor: Colors.transparent,
             automaticallyImplyLeading: false,
-            toolbarHeight: 112,
-            flexibleSpace: Container(
-              decoration: const BoxDecoration(gradient: LinearGradient(colors: AppColors.headerGradient, begin: Alignment.topLeft, end: Alignment.bottomRight)),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.medical_services, color: Colors.white),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Text(
-                              'EMSCodeSim — Patient Assessment',
-                              style: context.textStyles.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          _HeaderPill(label: 'Mode: ${mode.label}', icon: Icons.school),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'An EMT instructor in your pocket — learn vitals, learn assessment tools, choose EMT treatments, then run the patient.',
-                        style: context.textStyles.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.92), height: 1.35),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => context.push(AppRoutes.settings),
-                              borderRadius: BorderRadius.circular(14),
-                              splashFactory: NoSplash.splashFactory,
-                              child: Container(
-                                height: 46,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white.withValues(alpha: 0.22))),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.tune, color: Colors.white, size: 18),
-                                    const SizedBox(width: 10),
-                                    Expanded(child: Text('Settings', style: context.textStyles.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis)),
-                                    const Icon(Icons.chevron_right, color: Colors.white),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => context.read<AppState>().setInstructorMode(!instructor),
-                              borderRadius: BorderRadius.circular(14),
-                              splashFactory: NoSplash.splashFactory,
-                              child: Container(
-                                height: 46,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white.withValues(alpha: 0.22))),
-                                child: Row(
-                                  children: [
-                                    Icon(instructor ? Icons.visibility : Icons.visibility_off, color: Colors.white, size: 18),
-                                    const SizedBox(width: 10),
-                                    Expanded(child: Text(instructor ? 'Instructor Mode: ON' : 'Instructor Mode: OFF', style: context.textStyles.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            bottom: const PreferredSize(preferredSize: Size.fromHeight(18), child: SizedBox(height: 18)),
+            toolbarHeight: 132,
+            flexibleSpace: _HomeHeader(mode: mode, instructor: instructor),
+            bottom: const PreferredSize(preferredSize: Size.fromHeight(14), child: SizedBox(height: 14)),
           ),
-
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 920),
@@ -125,30 +45,83 @@ class VitalsHomePage extends StatelessWidget {
                         },
                       ),
                       const SizedBox(height: 12),
-                      const NormalNotNormalCard(),
+                      _NormalNotNormalHero(),
                       const SizedBox(height: 12),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Training mode', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
-                              const SizedBox(height: 6),
-                              Text('Learn: hints • Practice: coached • Test: scored', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
-                              const SizedBox(height: 10),
-                              SegmentedButton<TrainingMode>(
-                                showSelectedIcon: false,
-                                segments: [
-                                  for (final m in TrainingMode.values)
-                                    ButtonSegment(value: m, label: Text(m.label), icon: Icon(m == TrainingMode.learn ? Icons.school : m == TrainingMode.practice ? Icons.fitness_center : Icons.timer)),
-                                ],
-                                selected: {mode},
-                                onSelectionChanged: (s) => context.read<AppState>().setMode(s.first),
-                              ),
-                            ],
-                          ),
-                        ),
+                      _ModeCard(mode: mode),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _PathwaySliver(
+            step: '1',
+            title: 'Vitals Walkthroughs + Practice',
+            subtitle: 'Recommended first for new EMTs. Learn BP, pulse, respirations, SpO₂, skin, pupils, AVPU, AAOx, and pain before patient assessment.',
+            badge: 'Start here',
+            icon: Icons.monitor_heart,
+            buttonText: 'Start Vitals',
+            onTap: () => context.push(AppRoutes.learnVitals),
+            primary: true,
+          ),
+          _PathwaySliver(
+            step: '2',
+            title: 'Assessment Tools + Practice',
+            subtitle: 'Skip ahead if you already know vitals. Learn SAMPLE, OPQRST, primary assessment, stroke checks, trauma checks, reassessment, and reports.',
+            badge: 'Skip allowed',
+            icon: Icons.fact_check,
+            buttonText: 'Open Assessment Tools',
+            onTap: () => context.push(AppRoutes.assessmentTools),
+          ),
+          _PathwaySliver(
+            step: '3',
+            title: 'EMT Treatments & Meds',
+            subtitle: 'Connect abnormal findings to EMT-level actions. Learn what to consider, what to check first, protocol cautions, and what to reassess.',
+            badge: 'Decision layer',
+            icon: Icons.medication,
+            buttonText: 'Open Treatments & Meds',
+            onTap: () {
+              context.read<AppState>().markModuleOpened(TrainingModule.treatments);
+              context.push(AppRoutes.treatments);
+            },
+          ),
+          _PathwaySliver(
+            step: '4',
+            title: 'Patient Assessment Walkthrough',
+            subtitle: 'Run the patient step by step. Determine mental status, collect vitals, use SAMPLE/OPQRST, choose treatment, reassess, and give report.',
+            badge: 'Main skill',
+            icon: Icons.route,
+            buttonText: 'Start Walkthrough',
+            onTap: () {
+              context.read<AppState>().markModuleOpened(TrainingModule.walkthrough);
+              context.push(AppRoutes.walkthrough);
+            },
+            primary: true,
+          ),
+          _PathwaySliver(
+            step: '5',
+            title: 'Patient Assessment Cases',
+            subtitle: 'Practice free cases now. Future packs can add medical, trauma, respiratory, cardiac, pediatric, and AI patient interview simulations.',
+            badge: 'Case library',
+            icon: Icons.collections_bookmark,
+            buttonText: 'Browse Cases',
+            onTap: () => context.push(AppRoutes.cases),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xxl),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 920),
+                  child: Column(
+                    children: [
+                      _QuickToolsCard(),
+                      const SizedBox(height: 12),
+                      EMSResultBox(
+                        title: 'Core learning rule',
+                        message: 'Every major skill should ask: Is this normal? If not normal, why? What does it change in the assessment or treatment plan?',
+                        kind: EMSResultKind.info,
                       ),
                     ],
                   ),
@@ -156,66 +129,101 @@ class VitalsHomePage extends StatelessWidget {
               ),
             ),
           ),
-
-          _HomeSectionSliver(
-            title: '1) Vital Walkthroughs + Practice',
-            subtitle: 'Recommended first. Learn the vital, decide normal/not normal, then explain why it matters.',
-            icon: Icons.monitor_heart,
-            buttonText: 'Start with Vitals',
-            onTap: () => context.push(AppRoutes.learnVitals),
-          ),
-          _HomeSectionSliver(
-            title: '2) Assessment Tools + Practice',
-            subtitle: 'Go here after vitals, or skip ahead if you already know vitals. SAMPLE, OPQRST, primary assessment, stroke, trauma, and reassessment.',
-            icon: Icons.fact_check,
-            buttonText: 'Skip to Assessment Tools',
-            onTap: () => context.push(AppRoutes.assessmentTools),
-          ),
-          _HomeSectionSliver(
-            title: '3) EMT Treatments & Meds',
-            subtitle: 'Learn what treatments may fit the findings, what to check first, and what to reassess.',
-            icon: Icons.medication,
-            buttonText: 'Open Treatments',
-            onTap: () {
-              context.read<AppState>().markModuleOpened(TrainingModule.treatments);
-              context.push(AppRoutes.treatments);
-            },
-          ),
-          _HomeSectionSliver(
-            title: '4) Patient Assessment Walkthrough',
-            subtitle: 'Guided step-by-step patient assessment. Gather findings, choose treatment, reassess, and report.',
-            icon: Icons.route,
-            buttonText: 'Start Walkthrough',
-            onTap: () {
-              context.read<AppState>().markModuleOpened(TrainingModule.walkthrough);
-              context.push(AppRoutes.walkthrough);
-            },
-            accent: true,
-          ),
-          _HomeSectionSliver(
-            title: '5) Patient Assessment Cases',
-            subtitle: 'Free walkthrough cases now — with “Coming Soon” locked packs for future add-ons.',
-            icon: Icons.collections_bookmark,
-            buttonText: 'Browse Cases',
-            onTap: () => context.push(AppRoutes.cases),
-          ),
-
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.xxl),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 920),
-                  child: EMSResultBox(
-                    title: 'Existing simulators/tools are still included',
-                    message: 'You can access Blood Pressure, Pulse, Stroke, Pupils, Rule of Nines, Breath Sounds, and EMT Treatments from the learning pathway.',
-                    kind: EMSResultKind.info,
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({required this.mode, required this.instructor});
+  final TrainingMode mode;
+  final bool instructor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(gradient: LinearGradient(colors: AppColors.headerGradient, begin: Alignment.topLeft, end: Alignment.bottomRight)),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white.withValues(alpha: 0.22))),
+                    child: const Icon(Icons.medical_services, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('EMSCodeSim', style: context.textStyles.labelLarge?.copyWith(color: Colors.white.withValues(alpha: 0.84), fontWeight: FontWeight.w800)),
+                        Text('Patient Assessment Trainer', style: context.textStyles.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                  _HeaderPill(label: mode.label, icon: Icons.school),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Learn vitals first, then assessment tools, then treatments, then run the patient.',
+                style: context.textStyles.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.94), height: 1.3, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _HeaderButton(icon: Icons.tune, label: 'Settings', onTap: () => context.push(AppRoutes.settings)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _HeaderButton(
+                      icon: instructor ? Icons.visibility : Icons.visibility_off,
+                      label: instructor ? 'Instructor ON' : 'Instructor OFF',
+                      onTap: () => context.read<AppState>().setInstructorMode(!instructor),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderButton extends StatelessWidget {
+  const _HeaderButton({required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      splashFactory: NoSplash.splashFactory,
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white.withValues(alpha: 0.22))),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text(label, style: context.textStyles.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis)),
+          ],
+        ),
       ),
     );
   }
@@ -229,20 +237,19 @@ class _HeaderPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(999), border: Border.all(color: Colors.white.withValues(alpha: 0.22))),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 16, color: Colors.white),
-          const SizedBox(width: 8),
-          Text(label, style: context.textStyles.labelMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+          const SizedBox(width: 7),
+          Text(label, style: context.textStyles.labelMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
         ],
       ),
     );
   }
 }
-
 
 class _PrimaryHeroCard extends StatelessWidget {
   const _PrimaryHeroCard({required this.onStartVitals, required this.onSkipToAssessment, required this.onStartPatient});
@@ -263,30 +270,30 @@ class _PrimaryHeroCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(gradient: LinearGradient(colors: AppColors.headerGradient.map((c) => c.withValues(alpha: 0.18)).toList()), borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: cs.outline.withValues(alpha: 0.14))),
-                  child: const Icon(Icons.school, color: AppColors.emsBlue),
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(gradient: LinearGradient(colors: AppColors.headerGradient.map((c) => c.withValues(alpha: 0.18)).toList()), borderRadius: BorderRadius.circular(18), border: Border.all(color: cs.outline.withValues(alpha: 0.14))),
+                  child: const Icon(Icons.route, color: AppColors.emsBlue),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Learn the finding. Decide normal or not normal. Then treat the patient.', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                      Text('Build the patient assessment step by step.', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
                       const SizedBox(height: 6),
-                      Text('Best path for new EMTs: start with vitals, then assessment tools, then treatments, then full patient assessments. Experienced users can skip ahead anytime.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+                      Text('New EMTs should start with vitals. Students who already know vitals can skip ahead and use the app as a practice lab.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 14),
-            _PathStep(number: '1', title: 'Vitals first', subtitle: 'BP, pulse, RR, SpO₂, skin, pupils, AVPU, AAOx. Normal? Not normal? Why?'),
+            _MiniPathRow(label: 'Vitals', detail: 'Normal / not normal / why'),
             const SizedBox(height: 8),
-            _PathStep(number: '2', title: 'Assessment tools', subtitle: 'SAMPLE, OPQRST, primary assessment, DCAP-BTLS, stroke, reassessment.'),
+            _MiniPathRow(label: 'Assessment', detail: 'SAMPLE, OPQRST, primary, focused'),
             const SizedBox(height: 8),
-            _PathStep(number: '3', title: 'Treatment decisions', subtitle: 'Pick EMT-level treatments, check red flags, reassess, and report.'),
+            _MiniPathRow(label: 'Treatment', detail: 'Consider action, check red flags, reassess'),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -297,7 +304,7 @@ class _PrimaryHeroCard extends StatelessWidget {
                       onPressed: onStartVitals,
                       style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
                       icon: const Icon(Icons.monitor_heart, color: Colors.white),
-                      label: const Text('Start with Vitals', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                      label: const Text('Start with Vitals', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
                     ),
                   ),
                 ),
@@ -322,7 +329,7 @@ class _PrimaryHeroCard extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onStartPatient,
                 style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
-                icon: const Icon(Icons.route),
+                icon: const Icon(Icons.play_circle),
                 label: const Text('Go Straight to Patient Assessment'),
               ),
             ),
@@ -333,48 +340,125 @@ class _PrimaryHeroCard extends StatelessWidget {
   }
 }
 
-class _PathStep extends StatelessWidget {
-  const _PathStep({required this.number, required this.title, required this.subtitle});
-
-  final String number;
-  final String title;
-  final String subtitle;
+class _MiniPathRow extends StatelessWidget {
+  const _MiniPathRow({required this.label, required this.detail});
+  final String label;
+  final String detail;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.26), borderRadius: BorderRadius.circular(14), border: Border.all(color: cs.outline.withValues(alpha: 0.12))),
+      decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.24), borderRadius: BorderRadius.circular(14), border: Border.all(color: cs.outline.withValues(alpha: 0.11))),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(radius: 14, backgroundColor: AppColors.emsBlue.withValues(alpha: 0.14), child: Text(number, style: context.textStyles.labelMedium?.copyWith(fontWeight: FontWeight.w900, color: AppColors.emsBlue))),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
-                const SizedBox(height: 3),
-                Text(subtitle, style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.3)),
-              ],
-            ),
-          ),
+          Text(label, style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(detail, textAlign: TextAlign.right, style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w700))),
         ],
       ),
     );
   }
 }
 
-class _HomeSectionSliver extends StatelessWidget {
-  const _HomeSectionSliver({required this.title, required this.subtitle, required this.icon, required this.buttonText, required this.onTap, this.accent = false});
+class _NormalNotNormalHero extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.psychology_alt, color: AppColors.emsBlue),
+                const SizedBox(width: 8),
+                Expanded(child: Text('The app-wide thinking pattern', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w900))),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text('Every finding should lead to a decision:', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+            const SizedBox(height: 10),
+            const Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _ThinkingChip(label: 'Normal?'),
+                _ThinkingChip(label: 'Not normal?'),
+                _ThinkingChip(label: 'Why?'),
+                _ThinkingChip(label: 'What next?'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: AppColors.emsBlue.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.emsBlue.withValues(alpha: 0.16))),
+              child: Text('Example: Pulse 110 and irregular → Not normal: fast and not regular. Why it matters: check perfusion, BP, skin signs, pain, chest complaint, and reassess.', style: context.textStyles.bodySmall?.copyWith(height: 1.35, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ThinkingChip extends StatelessWidget {
+  const _ThinkingChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(label: Text(label, style: context.textStyles.labelMedium?.copyWith(fontWeight: FontWeight.w900)), avatar: const Icon(Icons.check_circle, size: 18), visualDensity: VisualDensity.compact);
+  }
+}
+
+class _ModeCard extends StatelessWidget {
+  const _ModeCard({required this.mode});
+  final TrainingMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Training mode', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 6),
+            Text('Learn gives walkthroughs. Practice gives coaching. Test scores at the end.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+            const SizedBox(height: 10),
+            SegmentedButton<TrainingMode>(
+              showSelectedIcon: false,
+              segments: [
+                for (final m in TrainingMode.values)
+                  ButtonSegment(value: m, label: Text(m.label), icon: Icon(m == TrainingMode.learn ? Icons.school : m == TrainingMode.practice ? Icons.fitness_center : Icons.timer)),
+              ],
+              selected: {mode},
+              onSelectionChanged: (s) => context.read<AppState>().setMode(s.first),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PathwaySliver extends StatelessWidget {
+  const _PathwaySliver({required this.step, required this.title, required this.subtitle, required this.badge, required this.icon, required this.buttonText, required this.onTap, this.primary = false});
+  final String step;
   final String title;
   final String subtitle;
+  final String badge;
   final IconData icon;
   final String buttonText;
   final VoidCallback onTap;
-  final bool accent;
+  final bool primary;
 
   @override
   Widget build(BuildContext context) {
@@ -395,22 +479,28 @@ class _HomeSectionSliver extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 44,
-                          height: 44,
+                          width: 48,
+                          height: 48,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: (accent ? AppColors.headerGradient : [cs.secondary, cs.tertiary]).map((c) => c.withValues(alpha: 0.14)).toList()),
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(color: cs.outline.withValues(alpha: 0.14)),
+                            gradient: LinearGradient(colors: (primary ? AppColors.headerGradient : [cs.secondary, cs.tertiary]).map((c) => c.withValues(alpha: 0.16)).toList()),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
                           ),
-                          child: Icon(icon, color: accent ? AppColors.emsBlue : cs.onSurface),
+                          child: Icon(icon, color: primary ? AppColors.emsBlue : cs.onSurface),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(title, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  CircleAvatar(radius: 12, backgroundColor: AppColors.emsBlue.withValues(alpha: 0.12), child: Text(step, style: context.textStyles.labelSmall?.copyWith(color: AppColors.emsBlue, fontWeight: FontWeight.w900))),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(title, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900))),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
                               Text(subtitle, style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
                             ],
                           ),
@@ -418,15 +508,21 @@ class _HomeSectionSliver extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: FilledButton.icon(
-                        onPressed: onTap,
-                        style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
-                        icon: const Icon(Icons.chevron_right, color: Colors.white),
-                        label: Text(buttonText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.46), borderRadius: BorderRadius.circular(999), border: Border.all(color: cs.outline.withValues(alpha: 0.12))),
+                          child: Text(badge, style: context.textStyles.labelMedium?.copyWith(fontWeight: FontWeight.w900, color: cs.onSurfaceVariant)),
+                        ),
+                        const Spacer(),
+                        FilledButton.icon(
+                          onPressed: onTap,
+                          style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)))),
+                          icon: const Icon(Icons.chevron_right, color: Colors.white),
+                          label: Text(buttonText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -435,6 +531,57 @@ class _HomeSectionSliver extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _QuickToolsCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Quick practice tools', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 6),
+            Text('Use these anytime without following the full pathway.', style: context.textStyles.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _QuickToolButton(label: 'BP', route: AppRoutes.bloodPressure, module: TrainingModule.bloodPressure),
+                _QuickToolButton(label: 'Pulse', route: AppRoutes.pulseTest, module: TrainingModule.pulse),
+                _QuickToolButton(label: 'Pupils', route: AppRoutes.pupilAssessment, module: TrainingModule.pupil),
+                _QuickToolButton(label: 'Stroke', route: AppRoutes.strokeAssessment, module: TrainingModule.stroke),
+                _QuickToolButton(label: 'Breath Sounds', route: AppRoutes.breathSound, module: TrainingModule.breath),
+                _QuickToolButton(label: 'Rule of Nines', route: AppRoutes.ruleOfNines, module: TrainingModule.burn),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickToolButton extends StatelessWidget {
+  const _QuickToolButton({required this.label, required this.route, required this.module});
+  final String label;
+  final String route;
+  final TrainingModule module;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text(label, style: context.textStyles.labelMedium?.copyWith(fontWeight: FontWeight.w900)),
+      avatar: const Icon(Icons.play_arrow, size: 18),
+      onPressed: () {
+        context.read<AppState>().markModuleOpened(module);
+        context.push(route);
+      },
     );
   }
 }
