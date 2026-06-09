@@ -1,9 +1,7 @@
-import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
 class VitalsHomePage extends StatelessWidget {
   const VitalsHomePage({super.key});
@@ -11,81 +9,119 @@ class VitalsHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const _FixedNormalBar(),
       body: CustomScrollView(
         slivers: [
-          const SliverToBoxAdapter(child: _SimpleHeader()),
+          const SliverToBoxAdapter(child: _HomeHeader()),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xxl),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                110,
+              ),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 820),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _StartWithVitalsCard(
-                        onStartVitals: () => context.push(AppRoutes.learnVitals),
-                        onSkipAhead: () => context.push(AppRoutes.assessmentTools),
-                      ),
-                      const SizedBox(height: 18),
-                      const _SectionLabel(
-                        title: 'Start Here',
-                        subtitle: 'Vitals are the foundation. Learn the finding, then decide normal or not normal.',
-                      ),
-                      const SizedBox(height: 10),
-                      _HomeTile(
+                      const _FreeVersionBadge(),
+                      const SizedBox(height: 16),
+
+                      _HomeActionCard(
                         icon: Icons.monitor_heart,
                         accent: AppColors.emsBlue,
-                        title: 'Vitals',
-                        subtitle: 'BP, pulse, respirations, SpO₂, skin, pupils, AVPU, AAOx, pain',
-                        helper: 'Walkthroughs + practice inside each vital',
+                        title: 'Basic Vitals',
+                        subtitle:
+                            'Blood pressure, pulse, respiratory rate, skin, pupils, AVPU, and AAOx4.',
+                        chips: const [
+                          'BP',
+                          'Pulse',
+                          'Respirations',
+                          'Skin',
+                          'Pupils',
+                          'AVPU',
+                          'AAOx4',
+                        ],
+                        buttonText: 'Start Vitals',
                         onTap: () => context.push(AppRoutes.learnVitals),
                       ),
-                      const SizedBox(height: 22),
-                      const _SectionLabel(
-                        title: 'After Vitals',
-                        subtitle: 'Assessment tools come next. Use the patient findings to decide what matters.',
-                      ),
-                      const SizedBox(height: 10),
-                      _HomeTile(
+
+                      const SizedBox(height: 14),
+
+                      _HomeActionCard(
                         icon: Icons.fact_check,
                         accent: const Color(0xFF22C55E),
-                        title: 'Assessment Tools',
-                        subtitle: 'SAMPLE, OPQRST, primary assessment, trauma, stroke, reassessment, reports',
-                        helper: 'Each tool has Learn + Practice',
+                        title: 'Assessment Flow',
+                        subtitle:
+                            'Practice Primary Assessment, SAMPLE, OPQRST, Secondary Assessment, and Reassessment.',
+                        chips: const [
+                          'Primary',
+                          'SAMPLE',
+                          'OPQRST',
+                          'Secondary',
+                          'Reassessment',
+                        ],
+                        buttonText: 'Start Assessment',
                         onTap: () => context.push(AppRoutes.assessmentTools),
                       ),
-                      const SizedBox(height: 22),
-                      const _SectionLabel(
-                        title: 'Put It Together',
-                        subtitle: 'Treatments and patient cases use vitals + assessment findings together.',
-                      ),
-                      const SizedBox(height: 10),
-                      _HomeTile(
-                        icon: Icons.medication,
-                        accent: const Color(0xFF8B5CF6),
-                        title: 'Treatments & Meds',
-                        subtitle: 'When to consider treatment, what to check first, what to reassess',
-                        helper: 'Protocol-aware decision practice',
-                        onTap: () {
-                          context.read<AppState>().markModuleOpened(TrainingModule.treatments);
-                          context.push(AppRoutes.treatments);
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      _HomeTile(
-                        icon: Icons.person_search,
+
+                      const SizedBox(height: 14),
+
+                      _HomeActionCard(
+                        icon: Icons.health_and_safety,
                         accent: const Color(0xFFFFA51F),
-                        title: 'Patient Assessment',
-                        subtitle: 'Assess the patient, collect vitals, choose treatment, reassess, give report',
-                        helper: 'Full walkthrough cases',
-                        onTap: () {
-                          context.read<AppState>().markModuleOpened(TrainingModule.walkthrough);
-                          context.push(AppRoutes.walkthrough);
-                        },
+                        title: 'EMT Skill Tools',
+                        subtitle:
+                            'Quick practice tools for stroke assessment and Rule of Nines burn estimates.',
+                        chips: const [
+                          'Stroke',
+                          'Rule of Nines',
+                          'Normal / Not Normal',
+                        ],
+                        buttonText: 'Start Tools',
+                        onTap: () => _showSkillToolsSheet(context),
                       ),
-                      const SizedBox(height: 18),
-                      const _NormalNotNormalCard(),
+
+                      const SizedBox(height: 14),
+
+                      _HomeActionCard(
+                        icon: Icons.assignment_turned_in,
+                        accent: const Color(0xFF8B5CF6),
+                        title: 'Full Vitals Practice',
+                        subtitle:
+                            'Complete an adult vital set, decide what is abnormal, and explain why it matters.',
+                        chips: const [
+                          'Adult patient',
+                          'Full set',
+                          'Decision practice',
+                        ],
+                        buttonText: 'Start Practice',
+                        onTap: () => context.push(AppRoutes.fullVitalsSet),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      _HomeActionCard(
+                        icon: Icons.show_chart,
+                        accent: const Color(0xFF0EA5E9),
+                        title: 'Progress',
+                        subtitle:
+                            'Review practice attempts, recent activity, and your training settings.',
+                        chips: const [
+                          'Scores',
+                          'Attempts',
+                          'Settings',
+                        ],
+                        buttonText: 'View Progress',
+                        onTap: () => context.push(AppRoutes.settings),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      const _ProPreviewCard(),
                     ],
                   ),
                 ),
@@ -96,17 +132,73 @@ class VitalsHomePage extends StatelessWidget {
       ),
     );
   }
+
+  static void _showSkillToolsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'EMT Skill Tools',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              _SheetButton(
+                icon: Icons.psychology_alt,
+                title: 'Stroke Assessment',
+                subtitle: 'Facial droop, arm drift, speech, and last known well.',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(AppRoutes.strokeAssessment);
+                },
+              ),
+              const SizedBox(height: 10),
+              _SheetButton(
+                icon: Icons.local_fire_department,
+                title: 'Rule of Nines',
+                subtitle: 'Estimate adult burn percentage using body regions.',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(AppRoutes.ruleOfNines);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
-class _SimpleHeader extends StatelessWidget {
-  const _SimpleHeader();
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(AppSpacing.md, MediaQuery.of(context).padding.top + 18, AppSpacing.md, 18),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        MediaQuery.of(context).padding.top + 20,
+        AppSpacing.md,
+        24,
+      ),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(colors: [Color(0xFF041225), Color(0xFF0A1F3D)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFF061A33),
+            Color(0xFF0A2E55),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
       child: Center(
         child: ConstrainedBox(
@@ -117,35 +209,77 @@ class _SimpleHeader extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(16),
-                      color: Colors.white.withValues(alpha: 0.08),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18),
+                      ),
                     ),
-                    child: const Icon(Icons.emergency, color: Color(0xFF22D3FF)),
+                    child: const Icon(
+                      Icons.emergency,
+                      color: Color(0xFF22D3FF),
+                      size: 28,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: RichText(
                       text: const TextSpan(
                         children: [
-                          TextSpan(text: 'EMS', style: TextStyle(color: Color(0xFF2281FF), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1)),
-                          TextSpan(text: 'Code', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1)),
-                          TextSpan(text: 'Sim', style: TextStyle(color: Color(0xFFFF4B55), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                          TextSpan(
+                            text: 'EMS',
+                            style: TextStyle(
+                              color: Color(0xFF22D3FF),
+                              fontSize: 30,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'Code',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'Sim',
+                            style: TextStyle(
+                              color: Color(0xFFFF4B55),
+                              fontSize: 30,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text('Patient Assessment Trainer', style: context.textStyles.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 6),
-              Text('Learn the vital. Decide normal or not normal. Understand why. Then assess and treat the patient.', style: context.textStyles.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.82), height: 1.35)),
               const SizedBox(height: 16),
-              const SizedBox(height: 132, child: _HeroPulseGraphic()),
+              Text(
+                'Vitals & Assessment',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Practice adult vitals, basic assessment flow, and normal vs not normal decision-making.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.84),
+                      height: 1.4,
+                    ),
+              ),
+              const SizedBox(height: 18),
+              const _HeroStatsRow(),
             ],
           ),
         ),
@@ -154,122 +288,520 @@ class _SimpleHeader extends StatelessWidget {
   }
 }
 
-class _HeroPulseGraphic extends StatelessWidget {
-  const _HeroPulseGraphic();
+class _HeroStatsRow extends StatelessWidget {
+  const _HeroStatsRow();
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _HeroPulsePainter(),
-      child: Center(
-        child: Icon(Icons.medical_services, size: 94, color: Colors.white.withValues(alpha: 0.10)),
+    return Row(
+      children: const [
+        Expanded(
+          child: _HeroStat(
+            label: 'Free',
+            value: 'Adult',
+            icon: Icons.person,
+          ),
+        ),
+        SizedBox(width: 10),
+        Expanded(
+          child: _HeroStat(
+            label: 'Focus',
+            value: 'Normal?',
+            icon: Icons.check_circle,
+          ),
+        ),
+        SizedBox(width: 10),
+        Expanded(
+          child: _HeroStat(
+            label: 'Level',
+            value: 'EMT',
+            icon: Icons.school,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white, size: 20),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.70),
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _HeroPulsePainter extends CustomPainter {
+class _FreeVersionBadge extends StatelessWidget {
+  const _FreeVersionBadge();
+
   @override
-  void paint(Canvas canvas, Size size) {
-    final centerY = size.height * 0.58;
-    final grid = Paint()..color = Colors.white.withValues(alpha: 0.025)..strokeWidth = 1;
-    for (var x = 0.0; x < size.width; x += 28) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
-    }
-
-    final glow = Paint()
-      ..color = const Color(0xFF22D3FF).withValues(alpha: 0.28)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
-    final blue = Paint()
-      ..color = const Color(0xFF22D3FF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final amber = Paint()
-      ..color = const Color(0xFFFFA51F)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final left = Path()
-      ..moveTo(0, centerY)
-      ..lineTo(size.width * .20, centerY)
-      ..lineTo(size.width * .23, centerY - 10)
-      ..lineTo(size.width * .26, centerY + 9)
-      ..lineTo(size.width * .30, centerY - 50)
-      ..lineTo(size.width * .34, centerY + 45)
-      ..lineTo(size.width * .38, centerY)
-      ..lineTo(size.width * .48, centerY);
-    canvas.drawPath(left, glow);
-    canvas.drawPath(left, blue);
-
-    canvas.drawLine(
-      Offset(size.width * .50, 18),
-      Offset(size.width * .50, size.height - 12),
-      Paint()..color = const Color(0xFF22D3FF).withValues(alpha: .70)..strokeWidth = 3..strokeCap = StrokeCap.round,
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFDCFCE7),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF86EFAC)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.lock_open, color: Color(0xFF15803D)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Free version: adult vitals and basic EMT assessment tools.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF14532D),
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
+        ],
+      ),
     );
-
-    final right = Path()
-      ..moveTo(size.width * .52, centerY)
-      ..lineTo(size.width * .60, centerY)
-      ..lineTo(size.width * .64, centerY - 24)
-      ..lineTo(size.width * .68, centerY + 40)
-      ..lineTo(size.width * .73, centerY - 36)
-      ..lineTo(size.width * .78, centerY + 18)
-      ..lineTo(size.width * .83, centerY - 12)
-      ..lineTo(size.width * .88, centerY)
-      ..lineTo(size.width, centerY);
-    canvas.drawPath(right, Paint()..color = const Color(0xFFFFA51F).withValues(alpha: 0.23)..style = PaintingStyle.stroke..strokeWidth = 10..strokeCap = StrokeCap.round..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7));
-    canvas.drawPath(right, amber);
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _StartWithVitalsCard extends StatelessWidget {
-  const _StartWithVitalsCard({required this.onStartVitals, required this.onSkipAhead});
-  final VoidCallback onStartVitals;
-  final VoidCallback onSkipAhead;
+class _HomeActionCard extends StatelessWidget {
+  const _HomeActionCard({
+    required this.icon,
+    required this.accent,
+    required this.title,
+    required this.subtitle,
+    required this.chips,
+    required this.buttonText,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color accent;
+  final String title;
+  final String subtitle;
+  final List<String> chips;
+  final String buttonText;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(icon, color: accent, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: context.textStyles.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          subtitle,
+                          style: context.textStyles.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final chip in chips)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: cs.outline.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      child: Text(
+                        chip,
+                        style: context.textStyles.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.arrow_forward),
+                  label: Text(buttonText),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProPreviewCard extends StatelessWidget {
+  const _ProPreviewCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: cs.outline.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.workspace_premium, color: Color(0xFFFFA51F)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'EMSCodeSim Pro',
+                  style: context.textStyles.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Pediatric normal values, full patient simulations, breath sounds, treatment decisions, and instructor tools can be added later.',
+                  style: context.textStyles.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFA51F).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              'Coming Soon',
+              style: context.textStyles.labelSmall?.copyWith(
+                color: const Color(0xFFB45309),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FixedNormalBar extends StatelessWidget {
+  const _FixedNormalBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.16),
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, -6),
+            ),
+          ],
+        ),
         child: Row(
           children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [AppColors.emsBlue.withValues(alpha: .95), const Color(0xFF0EA5E9).withValues(alpha: .72)]),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => context.push(AppRoutes.learnVitals),
+                icon: const Icon(Icons.monitor_heart),
+                label: const Text('Vitals'),
               ),
-              child: const Icon(Icons.favorite_border, color: Colors.white, size: 30),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: () => _showNormalValues(context),
+                icon: const Icon(Icons.check_circle),
+                label: const Text('Normal'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF16A34A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => context.push(AppRoutes.assessmentTools),
+                icon: const Icon(Icons.fact_check),
+                label: const Text('Assess'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static void _showNormalValues(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.82,
+          minChildSize: 0.45,
+          maxChildSize: 0.92,
+          builder: (context, scrollController) {
+            return ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
+              children: const [
+                _NormalHeader(),
+                SizedBox(height: 14),
+                _NormalValueTile(
+                  title: 'Blood Pressure',
+                  normal: 'About 90–120 systolic / 60–80 diastolic',
+                  abnormal: 'Low BP, very high BP, or signs of poor perfusion.',
+                  icon: Icons.speed,
+                ),
+                _NormalValueTile(
+                  title: 'Pulse',
+                  normal: '60–100 bpm, strong and regular',
+                  abnormal: 'Under 60, over 100, weak, irregular, or absent radial.',
+                  icon: Icons.favorite,
+                ),
+                _NormalValueTile(
+                  title: 'Respiratory Rate',
+                  normal: '12–20/min with normal effort',
+                  abnormal: 'Under 12, over 20, shallow, labored, or irregular.',
+                  icon: Icons.air,
+                ),
+                _NormalValueTile(
+                  title: 'Skin',
+                  normal: 'Pink, warm, and dry',
+                  abnormal: 'Pale, cool, clammy, cyanotic, flushed, or hot.',
+                  icon: Icons.back_hand,
+                ),
+                _NormalValueTile(
+                  title: 'Pupils',
+                  normal: 'PERRL: equal, round, reactive to light',
+                  abnormal: 'Unequal, fixed, dilated, pinpoint, or sluggish.',
+                  icon: Icons.visibility,
+                ),
+                _NormalValueTile(
+                  title: 'AVPU',
+                  normal: 'Alert',
+                  abnormal: 'Responds only to verbal, pain, or is unresponsive.',
+                  icon: Icons.record_voice_over,
+                ),
+                _NormalValueTile(
+                  title: 'AAOx4',
+                  normal: 'Person, place, time, and event',
+                  abnormal: 'Confusion or unable to answer orientation questions.',
+                  icon: Icons.psychology,
+                ),
+                _NormalValueTile(
+                  title: 'SpO₂',
+                  normal: 'Usually 94–100%',
+                  abnormal: 'Low oxygen saturation or signs of respiratory distress.',
+                  icon: Icons.bloodtype,
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _NormalHeader extends StatelessWidget {
+  const _NormalHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Adult Normal Findings',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Quick reference for the free version. Pediatric ranges can be added to the paid version later.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                height: 1.35,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NormalValueTile extends StatelessWidget {
+  const _NormalValueTile({
+    required this.title,
+    required this.normal,
+    required this.abnormal,
+    required this.icon,
+  });
+
+  final String title;
+  final String normal;
+  final String abnormal;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: const Color(0xFF16A34A)),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Start with Vitals', style: context.textStyles.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+                  Text(
+                    title,
+                    style: context.textStyles.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Normal: $normal',
+                    style: context.textStyles.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.35,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Recommended for new EMTs. You can skip ahead if you already know the basics.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 8,
-                    children: [
-                      FilledButton(onPressed: onStartVitals, child: const Text('Start Vitals')),
-                      TextButton(onPressed: onSkipAhead, child: const Text('Skip to Assessment')),
-                    ],
+                  Text(
+                    'Watch for: $abnormal',
+                    style: context.textStyles.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      height: 1.35,
+                    ),
                   ),
                 ],
               ),
@@ -281,108 +813,40 @@ class _StartWithVitalsCard extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.title, required this.subtitle});
-  final String title;
-  final String subtitle;
+class _SheetButton extends StatelessWidget {
+  const _SheetButton({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-        const SizedBox(height: 4),
-        Text(subtitle, style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
-      ],
-    );
-  }
-}
-
-class _HomeTile extends StatelessWidget {
-  const _HomeTile({required this.icon, required this.accent, required this.title, required this.subtitle, required this.helper, required this.onTap});
   final IconData icon;
-  final Color accent;
   final String title;
   final String subtitle;
-  final String helper;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
     return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        splashFactory: NoSplash.splashFactory,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(18), border: Border.all(color: accent.withValues(alpha: 0.25))),
-                child: Icon(icon, color: accent),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
-                    const SizedBox(height: 6),
-                    Text(helper, style: context.textStyles.labelMedium?.copyWith(color: accent, fontWeight: FontWeight.w900)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
-            ],
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.emsBlue),
+        title: Text(
+          title,
+          style: context.textStyles.titleSmall?.copyWith(
+            fontWeight: FontWeight.w900,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _NormalNotNormalCard extends StatelessWidget {
-  const _NormalNotNormalCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(color: const Color(0xFFFF4B55).withValues(alpha: .10), borderRadius: BorderRadius.circular(16)),
-              child: const Icon(Icons.search, color: Color(0xFFFF4B55)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Normal or Not Normal?', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 6),
-                  Text('Every practice screen should ask this first, then ask why it matters.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
-                  const SizedBox(height: 10),
-                  Text('Pulse 110 and irregular → Not normal: fast and not regular.', style: context.textStyles.bodyMedium?.copyWith(color: const Color(0xFFFF4B55), fontWeight: FontWeight.w900, height: 1.35)),
-                ],
-              ),
-            ),
-          ],
+        subtitle: Text(
+          subtitle,
+          style: context.textStyles.bodySmall?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
         ),
+        trailing: const Icon(Icons.arrow_forward),
+        onTap: onTap,
       ),
     );
   }
