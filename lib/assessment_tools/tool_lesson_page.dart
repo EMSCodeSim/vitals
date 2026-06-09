@@ -59,7 +59,7 @@ class _ToolLessonPageState extends State<ToolLessonPage> {
 
     return EMSVitalsScaffold(
       title: lesson.tool.title,
-      subtitle: mode == TrainingMode.learn ? 'Learn mode: hints are ON' : mode == TrainingMode.practice ? 'Practice mode: coached reps' : 'Test mode: self-check at the end',
+      subtitle: 'Learn what the tool is for, then practice deciding what is normal, not normal, and why it matters.',
       onInfoPressed: () {
         EMSInfoSheet.show(
           context,
@@ -80,7 +80,7 @@ class _ToolLessonPageState extends State<ToolLessonPage> {
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: Column(
                   children: [
-                    EMSSectionCard(title: 'Used for', child: Text(lesson.usedFor, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
+                    EMSSectionCard(title: 'Learn: Used for', subtitle: 'Assessment tools come after vital signs and help you decide what matters.', child: Text(lesson.usedFor, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
                     const SizedBox(height: 12),
                     EMSSectionCard(title: 'When to use it', child: Text(lesson.whenToUse, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
                     const SizedBox(height: 12),
@@ -112,7 +112,11 @@ class _ToolLessonPageState extends State<ToolLessonPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    EMSSectionCard(title: 'Practice', subtitle: 'Use the tool, then ask: normal or not normal, why, and what next?'),
+                    const SizedBox(height: 12),
                     _practiceFor(lesson.tool, mode, instructor),
+                    const SizedBox(height: 12),
+                    _OptionalToolFollowUpCard(toolTitle: lesson.tool.title),
                     const SizedBox(height: 12),
                     if (_launcherRouteFor(lesson.tool) case final String route)
                       EMSSectionCard(
@@ -413,4 +417,67 @@ class _SinglePracticeCard extends StatelessWidget {
     ToolId.secondaryAssessment => ('Secondary assessment happens:', const ['Before primary assessment', 'After immediate life threats are managed', 'Only at the hospital'], 1, 'Hint: Secondary = detailed, after urgent threats.', 'Correct: After immediate life threats are managed'),
     _ => ('Quick check', const ['Option A', 'Option B', 'Option C'], 0, 'Hint', 'Correct: Option A'),
   };
+}
+
+class _OptionalToolFollowUpCard extends StatefulWidget {
+  const _OptionalToolFollowUpCard({required this.toolTitle});
+  final String toolTitle;
+
+  @override
+  State<_OptionalToolFollowUpCard> createState() => _OptionalToolFollowUpCardState();
+}
+
+class _OptionalToolFollowUpCardState extends State<_OptionalToolFollowUpCard> {
+  bool _showQuestions = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return EMSSectionCard(
+      title: 'Optional follow-up questions',
+      subtitle: 'Use these when the student needs more assessment reasoning.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => setState(() => _showQuestions = !_showQuestions),
+              icon: Icon(_showQuestions ? Icons.expand_less : Icons.expand_more),
+              label: Text(_showQuestions ? 'Hide follow-up questions' : 'Show follow-up questions'),
+            ),
+          ),
+          if (_showQuestions) ...[
+            const SizedBox(height: 12),
+            _ToolQuestionLine(text: 'What finding did ${widget.toolTitle} help you identify?'),
+            const _ToolQuestionLine(text: 'Is the finding normal or not normal for this patient?'),
+            const _ToolQuestionLine(text: 'Why does it matter: airway, breathing, circulation, neurologic status, trauma, pain, or transport priority?'),
+            const _ToolQuestionLine(text: 'What should be assessed, treated, or reassessed next?'),
+            const SizedBox(height: 8),
+            Text('Keep the student answer short: “Not normal because ___, so I would ___ next.”', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35, fontStyle: FontStyle.italic)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolQuestionLine extends StatelessWidget {
+  const _ToolQuestionLine({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.help_outline, size: 18, color: AppColors.emsBlue),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: context.textStyles.bodySmall?.copyWith(height: 1.35))),
+        ],
+      ),
+    );
+  }
 }

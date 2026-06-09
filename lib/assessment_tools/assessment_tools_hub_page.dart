@@ -8,11 +8,24 @@ import 'package:go_router/go_router.dart';
 class AssessmentToolsHubPage extends StatelessWidget {
   const AssessmentToolsHubPage({super.key});
 
+  static const List<ToolId> _assessmentOnlyTools = [
+    ToolId.sample,
+    ToolId.opqrst,
+    ToolId.generalImpression,
+    ToolId.primaryAssessment,
+    ToolId.secondaryAssessment,
+    ToolId.dcapbtls,
+    ToolId.stroke,
+    ToolId.breathSounds,
+    ToolId.ruleOfNines,
+    ToolId.painScale,
+  ];
+
   @override
   Widget build(BuildContext context) {
     return EMSVitalsScaffold(
       title: 'Assessment Tools',
-      subtitle: 'Mnemonics + checklists EMTs use during assessment — explained in short cards with quick practice prompts.',
+      subtitle: 'Assessment-only skills after vitals: history, primary assessment, focused exams, reassessment, and reports.',
       onInfoPressed: () {
         EMSInfoSheet.show(
           context,
@@ -20,7 +33,7 @@ class AssessmentToolsHubPage extends StatelessWidget {
           children: const [
             Text('These are fast “field-friendly” reminders.'),
             SizedBox(height: 12),
-            Text('Tap a tool to learn when to use it and practice a quick question.'),
+            Text('Vitals are intentionally kept in the Vitals section. This page focuses on assessment tools and decision flow.'),
           ],
         );
       },
@@ -33,9 +46,9 @@ class AssessmentToolsHubPage extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: Column(
                   children: [
-                    for (final t in ToolId.values) ...[
+                    for (final t in _assessmentOnlyTools) ...[
                       _ToolTile(tool: t),
-                      if (t != ToolId.values.last) const SizedBox(height: 12),
+                      if (t != _assessmentOnlyTools.last) const SizedBox(height: 12),
                     ],
                   ],
                 ),
