@@ -20,11 +20,13 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   static const int _sys = 118;
   static const int _dia = 76;
   static const double _targetInflation = 170;
+  static const String _placementAsset = 'assets/images/bp_cuff_stethoscope_placement.png';
 
   Timer? _timer;
   Timer? _autoAdvanceTimer;
   double _pressure = 0;
   _VideoStage _stage = _VideoStage.ready;
+  bool _showPlacementPhoto = true;
   int _questionIndex = 0;
   final List<int?> _answers = [null, null];
 
@@ -35,16 +37,6 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
       _stage == _VideoStage.releaseToDia ||
       (_stage == _VideoStage.releaseToSys && _pressure <= _sys && _pressure > _dia);
 
-  bool get _showStethoscopePlacement =>
-      _stage == _VideoStage.placement ||
-      _stage == _VideoStage.inflate ||
-      _stage == _VideoStage.targetPopup ||
-      _stage == _VideoStage.releaseToSys ||
-      _stage == _VideoStage.systolicPopup ||
-      _stage == _VideoStage.releaseToDia ||
-      _stage == _VideoStage.diastolicPopup;
-
-  bool get _highlightBrachial => _stage == _VideoStage.placement;
   bool get _highlightTarget => _stage == _VideoStage.targetPopup || _stage == _VideoStage.inflate;
   bool get _highlightSys => _stage == _VideoStage.systolicPopup;
   bool get _highlightDia => _stage == _VideoStage.diastolicPopup;
@@ -52,56 +44,50 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   _PopUpData get _popUpData => switch (_stage) {
         _VideoStage.ready => const _PopUpData(
             icon: Icons.play_circle_outline,
-            title: 'Watch one BP reading',
-            message: 'Tap Play. The simulator will stop at each key point.',
-            color: AppColors.emsBlue,
-          ),
-        _VideoStage.placement => const _PopUpData(
-            icon: Icons.hearing,
-            title: 'Stethoscope here',
-            message: 'Place bell/diaphragm over the brachial artery, just above the elbow crease.',
+            title: 'Ready',
+            message: 'The demo will show one full BP reading.',
             color: AppColors.emsBlue,
           ),
         _VideoStage.inflate => const _PopUpData(
             icon: Icons.arrow_upward,
             title: 'Pump up',
-            message: 'Cuff pressure rises above the expected systolic.',
+            message: 'Inflate cuff to raise pressure.',
             color: AppColors.emsBlue,
           ),
         _VideoStage.targetPopup => const _PopUpData(
             icon: Icons.flag,
             title: 'Stop around 170',
-            message: 'High enough to be above the 118 systolic example.',
+            message: 'Above the example systolic pressure.',
             color: Colors.orange,
           ),
         _VideoStage.releaseToSys => const _PopUpData(
             icon: Icons.south,
             title: 'Release slowly',
-            message: 'Let the needle fall slowly. Listen for the first sound.',
+            message: 'Let the needle fall while listening.',
             color: AppColors.emsBlue,
           ),
         _VideoStage.systolicPopup => const _PopUpData(
             icon: Icons.graphic_eq,
             title: 'First sound = 118',
-            message: 'The first beat heard is systolic, the top number.',
+            message: 'Record this as systolic, the top number.',
             color: Colors.green,
           ),
         _VideoStage.releaseToDia => const _PopUpData(
             icon: Icons.south,
             title: 'Keep releasing',
-            message: 'Sounds continue while pressure drops toward diastolic.',
+            message: 'Sounds continue while pressure drops.',
             color: AppColors.emsBlue,
           ),
         _VideoStage.diastolicPopup => const _PopUpData(
             icon: Icons.volume_off,
             title: 'Sounds stop = 76',
-            message: 'When beats disappear, that is diastolic, the bottom number.',
+            message: 'Record this as diastolic, the bottom number.',
             color: AppColors.emsBlue,
           ),
         _VideoStage.finalReading => const _PopUpData(
             icon: Icons.check_circle,
             title: 'BP 118/76',
-            message: 'This is Normal for the adult range used in this app.',
+            message: 'Normal adult BP for this training example.',
             color: Colors.green,
           ),
         _VideoStage.quickCheck => const _PopUpData(
@@ -128,19 +114,23 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   void _startVideo() {
     _cancelTimers();
     setState(() {
+      _showPlacementPhoto = false;
       _pressure = 0;
-      _stage = _VideoStage.placement;
+      _stage = _VideoStage.inflate;
       _questionIndex = 0;
       _answers[0] = null;
       _answers[1] = null;
     });
-    _scheduleNext(const Duration(seconds: 2), () => _beginInflation());
+    _beginInflation(resetPressure: true);
   }
 
-  void _beginInflation() {
+  void _beginInflation({bool resetPressure = false}) {
     if (!mounted) return;
     _cancelTimers();
-    setState(() => _stage = _VideoStage.inflate);
+    setState(() {
+      _stage = _VideoStage.inflate;
+      if (resetPressure) _pressure = 0;
+    });
     _timer = Timer.periodic(const Duration(milliseconds: 45), (_) {
       if (!mounted) return;
       final next = (_pressure + 2.8).clamp(0.0, _targetInflation);
@@ -210,10 +200,8 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
       setState(() {});
       return;
     }
+
     switch (_stage) {
-      case _VideoStage.placement:
-        _scheduleNext(const Duration(seconds: 1), () => _beginInflation());
-        break;
       case _VideoStage.inflate:
         _beginInflation();
         break;
@@ -235,7 +223,6 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
         });
         break;
       case _VideoStage.finalReading:
-        break;
       case _VideoStage.ready:
       case _VideoStage.quickCheck:
         break;
@@ -246,6 +233,7 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   void _goToQuickCheck() {
     _cancelTimers();
     setState(() {
+      _showPlacementPhoto = false;
       _pressure = _dia.toDouble();
       _stage = _VideoStage.quickCheck;
       _questionIndex = 0;
@@ -255,14 +243,7 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   }
 
   void _replay() {
-    _cancelTimers();
-    setState(() {
-      _pressure = 0;
-      _stage = _VideoStage.ready;
-      _questionIndex = 0;
-      _answers[0] = null;
-      _answers[1] = null;
-    });
+    _startVideo();
   }
 
   void _selectAnswer(int answerIndex) => setState(() => _answers[_questionIndex] = answerIndex);
@@ -278,12 +259,99 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    if (_showPlacementPhoto) return _buildPlacementPhotoPage(context);
+    return _buildVideoDemoPage(context);
+  }
+
+  Widget _buildPlacementPhotoPage(BuildContext context) {
     return EMSVitalsScaffold(
       title: 'BP Tutorial',
-      subtitle: 'Simulator walkthrough with pop-up checkpoints.',
+      subtitle: 'Start with placement, then watch the demo.',
       showModePill: false,
       onBackPressed: () => context.go(AppRoutes.bloodPressure),
+      onInfoPressed: _showTeachingSheet,
+      bodySlivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              child: Image.asset(
+                                _placementAsset,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              height: 54,
+                              child: FilledButton.icon(
+                                onPressed: _startVideo,
+                                icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                                label: const Text(
+                                  'Next: Play Demo',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _showTeachingSheet,
+                            icon: const Icon(Icons.info_outline),
+                            label: const Text('More Info'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _goToQuickCheck,
+                            icon: const Icon(Icons.quiz_outlined),
+                            label: const Text('Quiz'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVideoDemoPage(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return EMSVitalsScaffold(
+      title: 'BP Tutorial Demo',
+      subtitle: 'Video-style simulator with pop-up checkpoints.',
+      showModePill: false,
+      onBackPressed: () => setState(() {
+        _cancelTimers();
+        _showPlacementPhoto = true;
+        _stage = _VideoStage.ready;
+        _pressure = 0;
+      }),
       onInfoPressed: _showTeachingSheet,
       bodySlivers: [
         SliverToBoxAdapter(
@@ -307,8 +375,6 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
                             _BpSimulatorVideo(
                               pressure: _pressure,
                               showBeats: _showBeats,
-                              showStethoscope: _showStethoscopePlacement,
-                              highlightBrachial: _highlightBrachial,
                               highlightTarget: _highlightTarget,
                               highlightSys: _highlightSys,
                               highlightDia: _highlightDia,
@@ -432,17 +498,17 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text('What is happening?', style: context.textStyles.titleLarge?.copyWith(fontWeight: FontWeight.w900))),
+                          Expanded(child: Text('Quick reminders', style: context.textStyles.titleLarge?.copyWith(fontWeight: FontWeight.w900))),
                           IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.close)),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      const _MiniTeachingPoint(icon: Icons.hearing, text: 'Stethoscope goes over the brachial artery, just above the elbow crease.'),
-                      const _MiniTeachingPoint(icon: Icons.arrow_upward, text: 'Pump above the expected systolic so blood flow is briefly blocked.'),
-                      const _MiniTeachingPoint(icon: Icons.south, text: 'Release slowly so the first and last sounds are not missed.'),
-                      const _MiniTeachingPoint(icon: Icons.graphic_eq, text: 'First clear beat = systolic/top number.'),
-                      const _MiniTeachingPoint(icon: Icons.volume_off, text: 'Sounds disappear = diastolic/bottom number.'),
-                      const _MiniTeachingPoint(icon: Icons.edit_note, text: 'Record as BP 118/76 mmHg.'),
+                      const _MiniTeachingPoint(icon: Icons.check_circle_outline, text: 'Place cuff about 1 inch above the elbow crease.'),
+                      const _MiniTeachingPoint(icon: Icons.straighten, text: 'Confirm the cuff size marker is in range.'),
+                      const _MiniTeachingPoint(icon: Icons.hearing, text: 'Place the stethoscope over the brachial artery.'),
+                      const _MiniTeachingPoint(icon: Icons.arrow_upward, text: 'Pump above the expected systolic pressure.'),
+                      const _MiniTeachingPoint(icon: Icons.south, text: 'Release slowly while listening.'),
+                      const _MiniTeachingPoint(icon: Icons.graphic_eq, text: 'First sound = systolic. Last sound = diastolic.'),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
@@ -461,7 +527,7 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   }
 }
 
-enum _VideoStage { ready, placement, inflate, targetPopup, releaseToSys, systolicPopup, releaseToDia, diastolicPopup, finalReading, quickCheck }
+enum _VideoStage { ready, inflate, targetPopup, releaseToSys, systolicPopup, releaseToDia, diastolicPopup, finalReading, quickCheck }
 
 class _PopUpData {
   const _PopUpData({required this.icon, required this.title, required this.message, required this.color});
@@ -480,15 +546,14 @@ class _VideoProgress extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final step = switch (stage) {
       _VideoStage.ready => 0,
-      _VideoStage.placement => 1,
-      _VideoStage.inflate => 2,
+      _VideoStage.inflate => 1,
       _VideoStage.targetPopup => 2,
       _VideoStage.releaseToSys => 3,
       _VideoStage.systolicPopup => 4,
       _VideoStage.releaseToDia => 5,
       _VideoStage.diastolicPopup => 6,
       _VideoStage.finalReading => 7,
-      _VideoStage.quickCheck => 8,
+      _VideoStage.quickCheck => 7,
     };
     return Row(
       children: [
@@ -514,8 +579,6 @@ class _BpSimulatorVideo extends StatelessWidget {
   const _BpSimulatorVideo({
     required this.pressure,
     required this.showBeats,
-    required this.showStethoscope,
-    required this.highlightBrachial,
     required this.highlightTarget,
     required this.highlightSys,
     required this.highlightDia,
@@ -524,8 +587,6 @@ class _BpSimulatorVideo extends StatelessWidget {
 
   final double pressure;
   final bool showBeats;
-  final bool showStethoscope;
-  final bool highlightBrachial;
   final bool highlightTarget;
   final bool highlightSys;
   final bool highlightDia;
@@ -542,7 +603,8 @@ class _BpSimulatorVideo extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [cs.surfaceContainerHighest.withValues(alpha: 0.26), cs.surface],
+              colors: [const Color(0xFF0E253B), const Color(0xFF143B5C), cs.surface],
+              stops: const [0, 0.56, 1],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -560,7 +622,7 @@ class _BpSimulatorVideo extends StatelessWidget {
                       highlightDia: highlightDia,
                     ),
                     const SizedBox(height: 12),
-                    _ArmCuffSim(showStethoscope: showStethoscope, highlightBrachial: highlightBrachial),
+                    _DemoToolStrip(active: showBeats, pressure: pressure),
                     const SizedBox(height: 12),
                     _CheckpointPopup(popUp: popUp),
                   ],
@@ -569,23 +631,23 @@ class _BpSimulatorVideo extends StatelessWidget {
                   children: [
                     Expanded(
                       flex: 5,
-                      child: Column(
-                        children: [
-                          _ArmCuffSim(showStethoscope: showStethoscope, highlightBrachial: highlightBrachial),
-                          const SizedBox(height: 12),
-                          _CheckpointPopup(popUp: popUp),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 4,
                       child: _SimGaugePanel(
                         pressure: pressure,
                         showBeats: showBeats,
                         highlightTarget: highlightTarget,
                         highlightSys: highlightSys,
                         highlightDia: highlightDia,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        children: [
+                          _DemoToolStrip(active: showBeats, pressure: pressure),
+                          const SizedBox(height: 12),
+                          _CheckpointPopup(popUp: popUp),
+                        ],
                       ),
                     ),
                   ],
@@ -596,123 +658,63 @@ class _BpSimulatorVideo extends StatelessWidget {
   }
 }
 
-class _ArmCuffSim extends StatelessWidget {
-  const _ArmCuffSim({required this.showStethoscope, required this.highlightBrachial});
-  final bool showStethoscope;
-  final bool highlightBrachial;
+class _DemoToolStrip extends StatelessWidget {
+  const _DemoToolStrip({required this.active, required this.pressure});
+  final bool active;
+  final double pressure;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return AspectRatio(
-      aspectRatio: 2.65,
-      child: Stack(
-        clipBehavior: Clip.none,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.55)),
+      ),
+      child: Column(
         children: [
-          Positioned.fill(
-            top: 28,
-            bottom: 22,
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFE9B48B).withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.brown.withValues(alpha: 0.14)),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 18,
-            top: 4,
-            bottom: 0,
-            width: 100,
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF193553),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.14), blurRadius: 14, offset: const Offset(0, 6))],
-              ),
-              child: Center(
-                child: RotatedBox(
-                  quarterTurns: 3,
-                  child: Text('CUFF', style: context.textStyles.labelLarge?.copyWith(color: Colors.white.withValues(alpha: 0.72), fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+          Row(
+            children: [
+              Expanded(
+                child: _DemoToolIcon(
+                  icon: Icons.air,
+                  label: 'Pump',
+                  sublabel: 'Inflate cuff',
+                  color: AppColors.emsBlue,
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            left: 120,
-            top: 24,
-            bottom: 20,
-            child: Container(width: 2, color: Colors.brown.withValues(alpha: 0.30)),
-          ),
-          Positioned(
-            left: 126,
-            top: 18,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: highlightBrachial ? 54 : 38,
-              height: highlightBrachial ? 54 : 38,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.emsBlue.withValues(alpha: highlightBrachial ? 0.20 : 0.08),
-                border: Border.all(color: AppColors.emsBlue.withValues(alpha: highlightBrachial ? 0.78 : 0.22), width: highlightBrachial ? 3 : 1),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DemoToolIcon(
+                  icon: Icons.south,
+                  label: 'Release',
+                  sublabel: 'Deflate slowly',
+                  color: pressure > 0 ? Colors.green : cs.onSurfaceVariant,
+                ),
               ),
-              child: Icon(Icons.my_location, color: AppColors.emsBlue.withValues(alpha: highlightBrachial ? 0.98 : 0.55), size: highlightBrachial ? 26 : 18),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: active ? Colors.green.withValues(alpha: 0.12) : AppColors.emsBlue.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
             ),
-          ),
-          Positioned(
-            left: 144,
-            top: 78,
-            child: Text('elbow crease', style: context.textStyles.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w800)),
-          ),
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            left: showStethoscope ? 138 : 150,
-            top: showStethoscope ? 28 : 44,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 250),
-              opacity: showStethoscope ? 1 : 0.25,
-              child: Column(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.emsBlue.withValues(alpha: 0.45), width: 3),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 5))],
-                    ),
-                    child: const Icon(Icons.hearing, color: AppColors.emsBlue, size: 24),
+            child: Row(
+              children: [
+                Icon(active ? Icons.graphic_eq : Icons.hearing, color: active ? Colors.green : AppColors.emsBlue),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    active ? 'Korotkoff sounds playing' : 'Listen for Korotkoff sounds',
+                    style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900),
                   ),
-                  Container(width: 2, height: 22, color: AppColors.emsBlue.withValues(alpha: 0.45)),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 112,
-            top: 100,
-            right: 12,
-            child: SizedBox(
-              height: 52,
-              child: CustomPaint(
-                painter: _TubePainter(color: cs.onSurface.withValues(alpha: 0.55)),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 20,
-            bottom: 0,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 5))],
-              ),
-              child: const Icon(Icons.arrow_upward, color: Colors.white),
+                ),
+              ],
             ),
           ),
         ],
@@ -721,25 +723,32 @@ class _ArmCuffSim extends StatelessWidget {
   }
 }
 
-class _TubePainter extends CustomPainter {
-  const _TubePainter({required this.color});
+class _DemoToolIcon extends StatelessWidget {
+  const _DemoToolIcon({required this.icon, required this.label, required this.sublabel, required this.color});
+  final IconData icon;
+  final String label;
+  final String sublabel;
   final Color color;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 4
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final path = Path()
-      ..moveTo(0, 0)
-      ..cubicTo(size.width * 0.25, size.height * 0.85, size.width * 0.62, size.height * 0.05, size.width, size.height * 0.78);
-    canvas.drawPath(path, paint);
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 30),
+          const SizedBox(height: 6),
+          Text(label, style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text(sublabel, textAlign: TextAlign.center, style: context.textStyles.labelSmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ],
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant _TubePainter oldDelegate) => oldDelegate.color != color;
 }
 
 class _SimGaugePanel extends StatelessWidget {
@@ -758,20 +767,27 @@ class _SimGaugePanel extends StatelessWidget {
       children: [
         AspectRatio(
           aspectRatio: 1,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              BpGauge(pressure: pressure),
-              if (highlightTarget) const _GaugeBadge(label: '170', sublabel: 'target', alignment: Alignment.topRight, color: Colors.orange),
-              if (highlightSys) const _GaugeBadge(label: '118', sublabel: 'SYS', alignment: Alignment.centerRight, color: Colors.green),
-              if (highlightDia) const _GaugeBadge(label: '76', sublabel: 'DIA', alignment: Alignment.bottomRight, color: AppColors.emsBlue),
-            ],
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                BpGauge(pressure: pressure),
+                if (highlightTarget) const _GaugeBadge(label: '170', sublabel: 'target', alignment: Alignment.topRight, color: Colors.orange),
+                if (highlightSys) const _GaugeBadge(label: '118', sublabel: 'SYS', alignment: Alignment.centerRight, color: Colors.green),
+                if (highlightDia) const _GaugeBadge(label: '76', sublabel: 'DIA', alignment: Alignment.bottomRight, color: AppColors.emsBlue),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(999), border: Border.all(color: cs.outline.withValues(alpha: 0.14))),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999), border: Border.all(color: cs.outline.withValues(alpha: 0.14))),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -841,9 +857,9 @@ class _CheckpointPopup extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: popUp.color.withValues(alpha: 0.11),
+          color: Colors.white.withValues(alpha: 0.94),
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: popUp.color.withValues(alpha: 0.34)),
+          border: Border.all(color: popUp.color.withValues(alpha: 0.34), width: 2),
         ),
         child: Row(
           children: [
@@ -931,7 +947,7 @@ class _VideoControls extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: isDone ? onPractice : onPlay,
                   icon: Icon(isDone ? Icons.fitness_center : (isReady ? Icons.play_arrow : (isPlaying ? Icons.pause : Icons.play_arrow)), color: Colors.white),
-                  label: Text(isDone ? 'Go to Practice' : (isReady ? 'Play Tutorial' : (isPlaying ? 'Pause' : 'Resume')), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                  label: Text(isDone ? 'Go to Practice' : (isReady ? 'Play Demo' : (isPlaying ? 'Pause' : 'Resume')), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
                 ),
               ),
             ),
