@@ -452,8 +452,9 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
           args: TrainingSummaryArgs(
             module: TrainingModule.bloodPressure,
             scorePercent: score,
-            correct: (within ? 1 : 0) + (normalCorrect ? 1 : 0),
-            total: 2,
+            // Palpated systolic is a single-skill check (no normal/not-normal item).
+            correct: within ? 1 : 0,
+            total: 1,
             timeSpent: _timeSpent(),
             recommendedReview: explanation,
             missedTeachingPoints: within ? const [] : ['Try to deflate slowly and watch for the first return of a palpable radial pulse.'],
