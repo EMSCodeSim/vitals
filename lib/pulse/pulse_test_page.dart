@@ -289,6 +289,31 @@ class _PulseTestPageState extends State<PulseTestPage> with SingleTickerProvider
                 child: Column(
                   children: [
                     EMSSectionCard(
+                      title: 'Pulse point diagram',
+                      subtitle: 'Use 2 fingers. Do not use your thumb.',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: AspectRatio(
+                              aspectRatio: 4 / 5,
+                              child: Image.asset(
+                                'assets/images/pulse_points_diagram.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Primary focus: radial pulse at the wrist. Brachial pulse is often used in infants.',
+                            style: context.textStyles.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    EMSSectionCard(
                       title: 'Setup',
                       child: Column(
                         children: [
