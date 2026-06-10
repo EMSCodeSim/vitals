@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 class EMSVitalsScaffold extends StatelessWidget {
-  const EMSVitalsScaffold({super.key, required this.title, this.subtitle, this.onInfoPressed, this.onBackPressed, required this.bodySlivers, this.bottomPadding = true});
+  const EMSVitalsScaffold({super.key, required this.title, this.subtitle, this.onInfoPressed, this.onBackPressed, required this.bodySlivers, this.bottomPadding = true, this.showModePill = true});
 
   final String title;
   final String? subtitle;
@@ -14,13 +14,14 @@ class EMSVitalsScaffold extends StatelessWidget {
   final VoidCallback? onBackPressed;
   final List<Widget> bodySlivers;
   final bool bottomPadding;
+  final bool showModePill;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          EMSVitalsHeader(title: title, onInfoPressed: onInfoPressed, onBackPressed: onBackPressed),
+          EMSVitalsHeader(title: title, onInfoPressed: onInfoPressed, onBackPressed: onBackPressed, showModePill: showModePill),
           if (subtitle != null)
             SliverToBoxAdapter(
               child: Padding(
@@ -42,11 +43,12 @@ class EMSVitalsScaffold extends StatelessWidget {
 }
 
 class EMSVitalsHeader extends StatelessWidget {
-  const EMSVitalsHeader({super.key, required this.title, this.onInfoPressed, this.onBackPressed});
+  const EMSVitalsHeader({super.key, required this.title, this.onInfoPressed, this.onBackPressed, this.showModePill = true});
 
   final String title;
   final VoidCallback? onInfoPressed;
   final VoidCallback? onBackPressed;
+  final bool showModePill;
 
   @override
   Widget build(BuildContext context) {
@@ -96,22 +98,24 @@ class EMSVitalsHeader extends StatelessWidget {
           ),
         ),
       ),
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(44),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: EMSModePill(
-                background: Colors.white.withValues(alpha: 0.16),
-                borderColor: Colors.white.withValues(alpha: 0.22),
-                foreground: Colors.white,
+      bottom: showModePill
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(44),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: EMSModePill(
+                      background: Colors.white.withValues(alpha: 0.16),
+                      borderColor: Colors.white.withValues(alpha: 0.22),
+                      foreground: Colors.white,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
-      ),
+            )
+          : null,
     );
   }
 }
