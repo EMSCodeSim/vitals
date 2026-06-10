@@ -17,8 +17,12 @@ import 'package:provider/provider.dart';
 
 import 'package:emscode_sim_vitals/nav.dart';
 
+enum BpStartMode { chooser, tutorial, practice }
+
 class BloodPressureSimulatorPage extends StatefulWidget {
-  const BloodPressureSimulatorPage({super.key});
+  const BloodPressureSimulatorPage({super.key, this.initialMode = BpStartMode.chooser});
+
+  final BpStartMode initialMode;
 
   @override
   State<BloodPressureSimulatorPage> createState() => _BloodPressureSimulatorPageState();
@@ -52,6 +56,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
   final _diaController = TextEditingController();
   String? _resultText;
   bool? _resultPass;
+  bool? _normalAnswer;
 
   final _rng = Random();
 
@@ -178,6 +183,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
     _hiddenDia = null;
     _hiddenPulse = null;
     _palpatedSys = null;
+    _patientCase = BpPatientCase.generate(_rng);
 
     _releaseStart = null;
     _releaseStartPressure = null;
@@ -192,6 +198,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
       currentPressure = 0;
       _resultText = null;
       _resultPass = null;
+      _normalAnswer = null;
     });
   }
 
@@ -251,7 +258,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
     // Case-driven ranges.
     final type = _patientCase.type;
     final (sysMin, sysMax, diaMin, diaMax, pulseMin, pulseMax) = switch (type) {
-      BpCaseType.normal => (108, 128, 66, 82, 60, 96),
+      BpCaseType.normal => (108, 118, 66, 78, 60, 96),
       BpCaseType.hypotensiveShock => (68, 96, 38, 60, 110, 150),
       BpCaseType.hypertensive => (170, 240, 95, 140, 55, 110),
       BpCaseType.pediatric => (80, 112, 45, 72, 90, 150),
@@ -307,7 +314,15 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
     if (_hiddenSys == null || _hiddenDia == null) {
       setState(() {
         _resultPass = false;
-        _resultText = 'Start a scenario by pressing Release, then submit.';
+        _resultText = 'Pump the cuff, press Release, listen for the beats, then submit.';
+      });
+      return;
+    }
+
+    if (_normalAnswer == null) {
+      setState(() {
+        _resultPass = false;
+        _resultText = 'Choose Normal or Not Normal before submitting.';
       });
       return;
     }
@@ -320,6 +335,10 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
     final diaDiff = (diaAns - dia).abs();
     final within = sysDiff <= tol && diaDiff <= tol;
     final exact = sysDiff == 0 && diaDiff == 0;
+    final correctNormal = _isAdultNormalBp(sys, dia);
+    final normalCorrect = _normalAnswer == correctNormal;
+    final allCorrect = within && normalCorrect;
+    final correctNormalText = correctNormal ? 'Normal adult range' : 'Not normal for an adult';
 
     final mode = context.read<AppState>().mode;
 
@@ -341,22 +360,23 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
     final explanation = _bpExplanation(sys: sys, dia: dia, caseType: _patientCase.type);
 
     if (mode == TrainingMode.test) {
-      final score = within ? 100 : (sysDiff <= 6 && diaDiff <= 6 ? 60 : 0);
+      final score = allCorrect ? 100 : (within || normalCorrect ? 50 : 0);
       unawaited(
         TrainingSummaryPage.recordAndShow(
           context,
           args: TrainingSummaryArgs(
             module: TrainingModule.bloodPressure,
             scorePercent: score,
-            correct: within ? 1 : 0,
-            total: 1,
+            correct: (within ? 1 : 0) + (normalCorrect ? 1 : 0),
+            total: 2,
             timeSpent: _timeSpent(),
             recommendedReview: explanation,
-            missedTeachingPoints: within
+            missedTeachingPoints: allCorrect
                 ? const []
                 : [
-                    'Deflate ~2–3 mmHg/sec to avoid missing the first/last Korotkoff sound.',
-                    'Systolic = first sound; diastolic = disappearance of sound (adult).',
+                    if (!within) 'Deflate ~2–3 mmHg/sec to avoid missing the first/last Korotkoff sound.',
+                    if (!within) 'Systolic = first sound; diastolic = disappearance of sound (adult).',
+                    if (!normalCorrect) 'Normal adult BP in this app is about 90–119 systolic and 60–79 diastolic.',
                   ],
           ),
         ),
@@ -365,13 +385,15 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
     }
 
     setState(() {
-      _resultPass = within;
-      _resultText = within
-          ? (exact ? '✅ Correct!' : '✅ Within tolerance (±4). Correct: $sys/$dia.')
-          : '❌ Not quite. Correct: $sys/$dia.';
-      _resultText = '${_resultText!}\n\nYour SYS was ${closeness(sysDiff)} (${sysDiff} mmHg). Your DIA was ${closeness(diaDiff)} (${diaDiff} mmHg).$deflationHint\n\n$explanation';
+      _resultPass = allCorrect;
+      _resultText = allCorrect
+          ? (exact ? '✅ Correct!' : '✅ BP within tolerance (±4). Correct: $sys/$dia.')
+          : '❌ Review this. Correct BP: $sys/$dia. Correct normal check: $correctNormalText.';
+      _resultText = '${_resultText!}\n\nYour SYS was ${closeness(sysDiff)} (${sysDiff} mmHg). Your DIA was ${closeness(diaDiff)} (${diaDiff} mmHg). Normal / Not Normal: ${normalCorrect ? 'correct' : 'review'}.$deflationHint\n\n$explanation';
     });
   }
+
+  bool _isAdultNormalBp(int sys, int dia) => sys >= 90 && sys < 120 && dia >= 60 && dia < 80;
 
   Duration _timeSpent() {
     final start = _releaseStart;
@@ -381,13 +403,14 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
 
   String _bpExplanation({required int sys, required int dia, required BpCaseType caseType}) {
     final category = switch (caseType) {
-      BpCaseType.normal => 'This is in a typical adult range (context matters).',
+      BpCaseType.normal => 'This is in the normal adult range used by this app.',
       BpCaseType.hypotensiveShock => 'This pattern can suggest poor perfusion/shock—correlate with skin signs, mentation, and pulse quality.',
       BpCaseType.hypertensive => 'Severe hypertension can be symptomatic (headache, neuro deficits, chest pain) but treat per protocol and context.',
-      BpCaseType.pediatric => 'Pediatric BPs vary by age/size; use local references and clinical presentation.',
+      BpCaseType.pediatric => 'Pediatric BPs vary by age/size; this free BP practice is focused on adults.',
       BpCaseType.weakPulseHardToHear => 'Weak pulses can make Korotkoff sounds subtle—slow your deflation and ensure good stethoscope placement.',
     };
-    return 'Teaching point: SYS is the first Korotkoff sound; DIA is when sounds disappear (adult). $category';
+    final normalLine = _isAdultNormalBp(sys, dia) ? 'This should be marked Normal.' : 'This should be marked Not Normal.';
+    return 'Teaching point: SYS is the first Korotkoff sound; DIA is when sounds disappear (adult). Normal adult range in this app is about 90–119/60–79. $normalLine $category';
   }
 
   void _submitPalpated() {
@@ -429,8 +452,8 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
           args: TrainingSummaryArgs(
             module: TrainingModule.bloodPressure,
             scorePercent: score,
-            correct: within ? 1 : 0,
-            total: 1,
+            correct: (within ? 1 : 0) + (normalCorrect ? 1 : 0),
+            total: 2,
             timeSpent: _timeSpent(),
             recommendedReview: explanation,
             missedTeachingPoints: within ? const [] : ['Try to deflate slowly and watch for the first return of a palpable radial pulse.'],
@@ -525,7 +548,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'Notes: Single readings don’t diagnose; use clinical context.',
+                              'Practice rule: mark Normal only when adult SYS is about 90–119 and DIA is about 60–79. Single readings don’t diagnose; use clinical context.',
                               style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
                             ),
                           ),
@@ -565,9 +588,11 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
 
   @override
   Widget build(BuildContext context) {
-    final mode = context.select<AppState, TrainingMode>((s) => s.mode);
-    if (mode == TrainingMode.learn) {
+    if (widget.initialMode == BpStartMode.tutorial) {
       return const BpLearnWalkthroughPage();
+    }
+    if (widget.initialMode == BpStartMode.chooser) {
+      return _buildModeChooser(context);
     }
 
     final cs = Theme.of(context).colorScheme;
@@ -579,8 +604,10 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
             : 'Resume Release';
 
     return EMSVitalsScaffold(
-      title: 'Blood Pressure',
-      subtitle: 'Pump to inflate • Toggle release • Beats occur SYS→DIA (training only, not medical advice)',
+      title: 'Blood Pressure Practice',
+      subtitle: 'Pump the cuff, slowly release, record SYS/DIA, then choose Normal or Not Normal.',
+      showModePill: false,
+      onBackPressed: () => context.go(AppRoutes.bloodPressure),
       onInfoPressed: _showInfo,
       bodySlivers: [
         SliverToBoxAdapter(
@@ -589,74 +616,29 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 760),
-                child: EMSSectionCard(
-                  title: 'Patient case',
-                  subtitle: mode == TrainingMode.learn ? 'Learn mode: use the case to build a differential.' : 'Case details are for training realism.',
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(999), border: Border.all(color: cs.outline.withValues(alpha: 0.14))),
-                    child: Text(_patientCase.type.label, style: context.textStyles.labelMedium?.copyWith(fontWeight: FontWeight.w900)),
-                  ),
-                  child: _PatientCaseCard(case_: _patientCase),
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
                 child: Card(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.lg),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: SwitchListTile.adaptive(
-                                contentPadding: EdgeInsets.zero,
-                                value: _palpatedMode,
-                                onChanged: (v) {
-                                  setState(() {
-                                    _palpatedMode = v;
-                                    _resultText = null;
-                                    _resultPass = null;
-                                    _sysController.clear();
-                                    _diaController.clear();
-                                  });
-                                  _stopBeats();
-                                },
-                                title: Text('Palpated systolic practice', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
-                                subtitle: Text('Estimate SYS by radial pulse return (no Korotkoff sounds).', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                              ),
-                            ),
-                          ],
+                        EMSResultBox(
+                          title: 'Practice goal',
+                          message: '1) Pump to about 160–200 mmHg. 2) Press Release. 3) First beats are systolic. 4) When beats stop, that is diastolic.',
+                          kind: EMSResultKind.info,
                         ),
-                        const SizedBox(height: AppSpacing.sm),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 360),
-                          child: Align(
-                            alignment: Alignment.center,
-                            child: FractionalTranslation(
-                              translation: MediaQuery.sizeOf(context).width < 360 ? const Offset(-0.02, 0) : Offset.zero,
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: BpGauge(pressure: currentPressure),
-                              ),
+                        const SizedBox(height: AppSpacing.md),
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 360),
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: BpGauge(pressure: currentPressure),
                             ),
                           ),
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        Text('Pressure: ${currentPressure.toStringAsFixed(1)} mmHg', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                        if (_palpatedMode) ...[
-                          const SizedBox(height: 8),
-                          _RadialPulseIndicator(isPresent: _hiddenSys == null ? true : currentPressure < _hiddenSys!),
-                        ],
+                        Text('Pressure: ${currentPressure.toStringAsFixed(0)} mmHg', textAlign: TextAlign.center, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
                         if (_deflationCoach != null) ...[
                           const SizedBox(height: 12),
                           EMSResultBox(title: 'Coaching', message: _deflationCoach!, kind: EMSResultKind.info),
@@ -666,19 +648,19 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                           children: [
                             Expanded(
                               child: SizedBox(
-                                height: 54,
+                                height: 56,
                                 child: FilledButton.icon(
                                   onPressed: _pump,
                                   style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
                                   icon: const Icon(Icons.add, color: Colors.white),
-                                  label: const Text('Pump', style: TextStyle(color: Colors.white)),
+                                  label: const Text('Pump', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
                                 ),
                               ),
                             ),
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: SizedBox(
-                                height: 54,
+                                height: 56,
                                 child: OutlinedButton.icon(
                                   onPressed: _toggleRelease,
                                   style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
@@ -692,8 +674,8 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            Expanded(child: Text('Deflation speed', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900))),
-                            Text('${_deflationStep.toStringAsFixed(1)} mmHg/tick', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                            Expanded(child: Text('Release speed', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900))),
+                            Text('slower ↔ faster', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
                           ],
                         ),
                         SliderTheme(
@@ -707,35 +689,51 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                           ),
                         ),
                         const SizedBox(height: 12),
-                        if (!_palpatedMode)
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _sysController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                  decoration: const InputDecoration(labelText: 'Systolic (SYS)'),
-                                ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _sysController,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                decoration: const InputDecoration(labelText: 'Systolic / top #'),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _diaController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                  decoration: const InputDecoration(labelText: 'Diastolic (DIA)'),
-                                ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _diaController,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                decoration: const InputDecoration(labelText: 'Diastolic / bottom #'),
                               ),
-                            ],
-                          )
-                        else
-                          TextField(
-                            controller: _sysController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                            decoration: const InputDecoration(labelText: 'Palpated systolic (SYS)'),
-                          ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Text('Is this blood pressure normal?', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _NormalChoiceButton(
+                                label: 'Normal',
+                                icon: Icons.check_circle_outline,
+                                selected: _normalAnswer == true,
+                                onTap: () => setState(() => _normalAnswer = true),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _NormalChoiceButton(
+                                label: 'Not Normal',
+                                icon: Icons.warning_amber_rounded,
+                                selected: _normalAnswer == false,
+                                onTap: () => setState(() => _normalAnswer = false),
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 14),
                         Row(
                           children: [
@@ -746,7 +744,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                                   onPressed: _submit,
                                   style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
                                   icon: const Icon(Icons.check, color: Colors.white),
-                                  label: const Text('Submit', style: TextStyle(color: Colors.white)),
+                                  label: const Text('Submit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
                                 ),
                               ),
                             ),
@@ -758,7 +756,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                                   onPressed: _reset,
                                   style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
                                   icon: const Icon(Icons.restart_alt),
-                                  label: const Text('Reset'),
+                                  label: const Text('New Try'),
                                 ),
                               ),
                             ),
@@ -779,6 +777,60 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
       ],
     );
   }
+
+  Widget _buildModeChooser(BuildContext context) {
+    return EMSVitalsScaffold(
+      title: 'Blood Pressure',
+      subtitle: 'Choose how you want to use this section.',
+      showModePill: false,
+      onInfoPressed: _showInfo,
+      bodySlivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _BpChoiceCard(
+                      icon: Icons.school,
+                      title: 'Tutorial',
+                      subtitle: 'Watch the cuff pump up and slowly deflate. The walkthrough pauses at the first beat for systolic and when beats stop for diastolic.',
+                      buttonText: 'Start Tutorial',
+                      onTap: () {
+                        context.read<AppState>().setMode(TrainingMode.learn);
+                        context.go('${AppRoutes.bloodPressure}?flow=tutorial');
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _BpChoiceCard(
+                      icon: Icons.monitor_heart,
+                      title: 'Practice',
+                      subtitle: 'You pump, release, record SYS/DIA, then decide if the adult BP is Normal or Not Normal.',
+                      buttonText: 'Start Practice',
+                      onTap: () {
+                        context.read<AppState>().setMode(TrainingMode.practice);
+                        context.go('${AppRoutes.bloodPressure}?flow=practice');
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    EMSResultBox(
+                      title: 'Normal adult BP used in practice',
+                      message: 'Normal is about 90–119 systolic and 60–79 diastolic. A single simulated reading is for training only and is not medical advice.',
+                      kind: EMSResultKind.info,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
 }
 
 enum BpCaseType { normal, hypotensiveShock, hypertensive, pediatric, weakPulseHardToHear }
@@ -818,7 +870,8 @@ class BpPatientCase {
   );
 
   static BpPatientCase generate(Random rng) {
-    final type = BpCaseType.values[rng.nextInt(BpCaseType.values.length)];
+    const adultPracticeTypes = [BpCaseType.normal, BpCaseType.hypotensiveShock, BpCaseType.hypertensive, BpCaseType.weakPulseHardToHear];
+    final type = adultPracticeTypes[rng.nextInt(adultPracticeTypes.length)];
     return switch (type) {
       BpCaseType.normal => BpPatientCase(
         type: type,
@@ -957,3 +1010,96 @@ class _CategoryCard extends StatelessWidget {
     );
   }
 }
+class _BpChoiceCard extends StatelessWidget {
+  const _BpChoiceCard({required this.icon, required this.title, required this.subtitle, required this.buttonText, required this.onTap});
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String buttonText;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: cs.primary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(icon, color: cs.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(title, style: context.textStyles.titleLarge?.copyWith(fontWeight: FontWeight.w900))),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(subtitle, style: context.textStyles.bodyMedium?.copyWith(color: cs.onSurfaceVariant, height: 1.4)),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                  label: Text(buttonText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NormalChoiceButton extends StatelessWidget {
+  const _NormalChoiceButton({required this.label, required this.icon, required this.selected, required this.onTap});
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = selected ? cs.primary : cs.outline;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        height: 54,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: selected ? cs.primary.withValues(alpha: 0.11) : cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: selected ? color.withValues(alpha: 0.55) : cs.outline.withValues(alpha: 0.18), width: selected ? 2 : 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: selected ? cs.primary : cs.onSurfaceVariant, size: 20),
+            const SizedBox(width: 8),
+            Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900, color: selected ? cs.primary : cs.onSurface))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

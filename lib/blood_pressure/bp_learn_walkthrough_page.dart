@@ -54,12 +54,12 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
 
   String get _teachingText => switch (_stage) {
         _WalkthroughStage.ready => 'Place the cuff correctly, find the brachial pulse, and get ready to inflate.',
-        _WalkthroughStage.inflate => 'The cuff is pumped above the expected systolic pressure so blood flow is temporarily stopped.',
+        _WalkthroughStage.inflate => 'The cuff is pumped to 170 because this is above the expected systolic of 118. Going above systolic briefly stops blood flow under the cuff.',
         _WalkthroughStage.releaseToSys => 'Open the valve slowly. In real practice, release around 2–3 mmHg per second.',
         _WalkthroughStage.systolicPause => 'The first clear Korotkoff beats you hear are the systolic pressure — the top number.',
         _WalkthroughStage.releaseToDia => 'Keep releasing slowly. Beats continue while cuff pressure is between systolic and diastolic.',
         _WalkthroughStage.diastolicPause => 'When the beats disappear, that point is the diastolic pressure — the bottom number.',
-        _WalkthroughStage.finalReading => 'This reading is written as systolic over diastolic: 118/76 mmHg.',
+        _WalkthroughStage.finalReading => 'This reading is written as systolic over diastolic: 118/76 mmHg. This example is normal for an adult in this app.',
         _WalkthroughStage.quickCheck => 'Answer two quick questions, then switch to Practice Mode to try it yourself.',
       };
 
@@ -170,16 +170,29 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
       setState(() => _questionIndex = 1);
     } else {
       context.read<AppState>().setMode(TrainingMode.practice);
-      context.go(AppRoutes.bloodPressure);
+      context.go('${AppRoutes.bloodPressure}?flow=practice');
     }
+  }
+
+  void _jumpToQuiz() {
+    _timer?.cancel();
+    setState(() {
+      _pressure = _dia.toDouble();
+      _stage = _WalkthroughStage.quickCheck;
+      _questionIndex = 0;
+      _answers[0] = null;
+      _answers[1] = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return EMSVitalsScaffold(
-      title: 'Blood Pressure Walkthrough',
-      subtitle: 'Watch the BP dial move: pump up → release → first beats = systolic → beats disappear = diastolic.',
+      title: 'Blood Pressure Tutorial',
+      subtitle: 'Watch the BP dial move: pump up → slow release → first beats = systolic → beats disappear = diastolic.',
+      showModePill: false,
+      onBackPressed: () => context.go(AppRoutes.bloodPressure),
       onInfoPressed: _showTeachingSheet,
       bodySlivers: [
         SliverToBoxAdapter(
@@ -236,6 +249,8 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
                                     Text('118/76 mmHg', style: context.textStyles.headlineMedium?.copyWith(color: cs.onPrimaryContainer, fontWeight: FontWeight.w900)),
                                     const SizedBox(height: 6),
                                     Text('Document: BP 118/76 mmHg', style: context.textStyles.bodyMedium?.copyWith(color: cs.onPrimaryContainer, height: 1.35)),
+                                    const SizedBox(height: 6),
+                                    Text('Normal adult BP in this app: about 90–119 systolic and 60–79 diastolic.', style: context.textStyles.bodySmall?.copyWith(color: cs.onPrimaryContainer, height: 1.35)),
                                   ],
                                 ),
                               ),
@@ -263,11 +278,31 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _showTeachingSheet,
+                            icon: const Icon(Icons.info_outline),
+                            label: const Text('More Info'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _jumpToQuiz,
+                            icon: const Icon(Icons.quiz_outlined),
+                            label: const Text('Quiz'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     const _CommonMistakesCard(),
                     const SizedBox(height: 12),
                     EMSResultBox(
-                      title: 'Learn Mode only',
-                      message: 'This screen teaches the BP dial step by step. Switch the top mode to Practice or Test to use the regular simulator.',
+                      title: 'Ready to try it?',
+                      message: 'After the tutorial, use Practice Mode to pump, release, record SYS/DIA, and choose Normal or Not Normal.',
                       kind: EMSResultKind.info,
                     ),
                   ],
@@ -310,10 +345,11 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      const _MiniTeachingPoint(text: 'Pump above the expected systolic pressure.'),
-                      const _MiniTeachingPoint(text: 'Release slowly, about 2–3 mmHg/sec in real practice.'),
-                      const _MiniTeachingPoint(text: 'First clear beats heard = systolic/top number.'),
-                      const _MiniTeachingPoint(text: 'Beats disappear = diastolic/bottom number.'),
+                      const _MiniTeachingPoint(text: 'Blood pressure checks how much pressure blood puts on the artery walls.'),
+                      const _MiniTeachingPoint(text: 'The cuff squeezes the arm until blood flow is temporarily blocked.'),
+                      const _MiniTeachingPoint(text: 'You pump above the expected systolic pressure, then release slowly, about 2–3 mmHg/sec in real practice.'),
+                      const _MiniTeachingPoint(text: 'First clear beats heard = systolic/top number, when blood first starts moving again.'),
+                      const _MiniTeachingPoint(text: 'Beats disappear = diastolic/bottom number, when blood is flowing without cuff restriction.'),
                       const _MiniTeachingPoint(text: 'Document as systolic over diastolic, such as BP 118/76 mmHg.'),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -518,7 +554,7 @@ class _ControlRow extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onStart,
               icon: const Icon(Icons.play_arrow, color: Colors.white),
-              label: const Text('Start Walkthrough', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+              label: const Text('Start Tutorial', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
             ),
           ),
         if (showPause)
@@ -528,7 +564,7 @@ class _ControlRow extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onPauseResume,
               icon: Icon(timerActive ? Icons.pause : Icons.play_arrow),
-              label: Text(timerActive ? 'Pause Walkthrough' : 'Resume Walkthrough'),
+              label: Text(timerActive ? 'Pause Tutorial' : 'Resume Tutorial'),
             ),
           ),
         if (showContinue)
@@ -549,7 +585,7 @@ class _ControlRow extends StatelessWidget {
             child: TextButton.icon(
               onPressed: onReplay,
               icon: const Icon(Icons.replay),
-              label: const Text('Replay from Beginning'),
+              label: const Text('Replay Tutorial'),
             ),
           ),
         ],
