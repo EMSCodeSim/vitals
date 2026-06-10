@@ -351,7 +351,7 @@ class _QuickQuizCard extends StatelessWidget {
   }
 }
 
-class _RespRatePracticeCard extends StatelessWidget {
+class _RespRatePracticeCard extends StatefulWidget {
   const _RespRatePracticeCard({required this.hiddenRr, required this.guess, required this.showHint, required this.showReveal, required this.onGuessChanged, required this.onCheck, required this.result});
   final int hiddenRr;
   final int guess;
@@ -362,41 +362,101 @@ class _RespRatePracticeCard extends StatelessWidget {
   final bool? result;
 
   @override
+  State<_RespRatePracticeCard> createState() => _RespRatePracticeCardState();
+}
+
+class _RespRatePracticeCardState extends State<_RespRatePracticeCard> {
+  bool _showDemo = false;
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final prompt = 'A patient is breathing with a steady pattern. Estimate the respiratory rate.';
 
+    if (!_showDemo) {
+      return EMSSectionCard(
+        title: 'Tutorial: Respirations',
+        subtitle: 'Visual first: observe breathing before you count.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(
+                'assets/images/respirations_tutorial.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 12),
+            EMSResultBox(
+              title: 'Key point',
+              message: 'Watch the chest or abdomen rise and fall. Count respirations for 30 seconds. One full rise and fall = 1 breath. Multiply by 2 to get breaths per minute.',
+              kind: EMSResultKind.info,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: () => setState(() => _showDemo = true),
+                style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+                icon: const Icon(Icons.play_arrow, color: Colors.white),
+                label: const Text('Next: Watch Demo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return EMSSectionCard(
-      title: 'Practice: Respiratory rate',
-      subtitle: showHint ? 'Hint: adult normal is about 12–20/min. You’re aiming within ±2.' : null,
+      title: 'Demo + Practice: Respiratory rate',
+      subtitle: widget.showHint ? 'Hint: adult normal is about 12–20/min. You’re aiming within ±2.' : 'Count the breathing pattern, then document your estimate.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(prompt, style: context.textStyles.bodyMedium?.copyWith(height: 1.45)),
           const SizedBox(height: 12),
-          Center(child: _BreathMetronome(bpm: hiddenRr)),
+          Center(child: _BreathMetronome(bpm: widget.hiddenRr)),
           const SizedBox(height: 12),
-          Text('Your estimate: $guess /min', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
-          Slider(value: guess.toDouble(), min: 6, max: 36, divisions: 30, onChanged: (v) => onGuessChanged(v.round())),
+          EMSResultBox(
+            title: 'Demo reminder',
+            message: 'Watch the rise and fall. Count for 30 seconds, then multiply by 2.',
+            kind: EMSResultKind.info,
+          ),
+          const SizedBox(height: 12),
+          Text('Your estimate: ${widget.guess} /min', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Slider(value: widget.guess.toDouble(), min: 6, max: 36, divisions: 30, onChanged: (v) => widget.onGuessChanged(v.round())),
           SizedBox(
             width: double.infinity,
             height: 50,
             child: FilledButton.icon(
-              onPressed: onCheck,
+              onPressed: widget.onCheck,
               style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
               icon: const Icon(Icons.check, color: Colors.white),
               label: const Text('Check', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
             ),
           ),
-          if (showReveal) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: () => setState(() => _showDemo = false),
+              style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Back to tutorial photo'),
+            ),
+          ),
+          if (widget.showReveal) ...[
             const SizedBox(height: 10),
-            EMSResultBox(title: 'Instructor key', message: 'Hidden rate: $hiddenRr /min', kind: EMSResultKind.info),
-          ] else if (result != null) ...[
+            EMSResultBox(title: 'Instructor key', message: 'Hidden rate: ${widget.hiddenRr} /min', kind: EMSResultKind.info),
+          ] else if (widget.result != null) ...[
             const SizedBox(height: 10),
             EMSResultBox(
-              title: result == true ? 'Correct' : 'Needs work',
-              message: result == true ? 'Nice. In real patients, also look at work of breathing + ability to speak.' : 'Try counting for 15 seconds and multiplying by 4. Also watch for irregular breathing.',
-              kind: result == true ? EMSResultKind.success : EMSResultKind.warning,
+              title: widget.result == true ? 'Correct' : 'Needs work',
+              message: widget.result == true ? 'Nice. In real patients, also look at work of breathing + ability to speak.' : 'Try counting for 30 seconds and multiplying by 2. Also watch for irregular breathing.',
+              kind: widget.result == true ? EMSResultKind.success : EMSResultKind.warning,
             ),
           ],
           const SizedBox(height: 6),
