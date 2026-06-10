@@ -452,7 +452,6 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
           args: TrainingSummaryArgs(
             module: TrainingModule.bloodPressure,
             scorePercent: score,
-            // Palpated systolic is a single-skill check (no normal/not-normal item).
             correct: within ? 1 : 0,
             total: 1,
             timeSpent: _timeSpent(),
@@ -625,7 +624,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                       children: [
                         EMSResultBox(
                           title: 'Practice goal',
-                          message: '1) Pump to about 160–200 mmHg. 2) Press Release. 3) First beats are systolic. 4) When beats stop, that is diastolic.',
+                          message: 'Pump → Release → First sound = SYS → Last sound = DIA.',
                           kind: EMSResultKind.info,
                         ),
                         const SizedBox(height: AppSpacing.md),
@@ -798,7 +797,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                     _BpChoiceCard(
                       icon: Icons.school,
                       title: 'Tutorial',
-                      subtitle: 'Watch the cuff pump up and slowly deflate. The walkthrough pauses at the first beat for systolic and when beats stop for diastolic.',
+                      subtitle: 'Video-style simulator with pop-up checkpoints.',
                       buttonText: 'Start Tutorial',
                       onTap: () {
                         context.read<AppState>().setMode(TrainingMode.learn);
@@ -809,7 +808,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                     _BpChoiceCard(
                       icon: Icons.monitor_heart,
                       title: 'Practice',
-                      subtitle: 'You pump, release, record SYS/DIA, then decide if the adult BP is Normal or Not Normal.',
+                      subtitle: 'Pump, release, record, and choose Normal or Not Normal.',
                       buttonText: 'Start Practice',
                       onTap: () {
                         context.read<AppState>().setMode(TrainingMode.practice);
@@ -819,7 +818,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                     const SizedBox(height: 14),
                     EMSResultBox(
                       title: 'Normal adult BP used in practice',
-                      message: 'Normal is about 90–119 systolic and 60–79 diastolic. A single simulated reading is for training only and is not medical advice.',
+                      message: 'Normal adult practice range: 90–119 / 60–79.',
                       kind: EMSResultKind.info,
                     ),
                   ],

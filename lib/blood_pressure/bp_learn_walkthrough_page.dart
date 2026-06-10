@@ -19,151 +19,253 @@ class BpLearnWalkthroughPage extends StatefulWidget {
 class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   static const int _sys = 118;
   static const int _dia = 76;
-  static const double _maxInflation = 170;
+  static const double _targetInflation = 170;
 
   Timer? _timer;
+  Timer? _autoAdvanceTimer;
   double _pressure = 0;
-  _WalkthroughStage _stage = _WalkthroughStage.ready;
+  _VideoStage _stage = _VideoStage.ready;
   int _questionIndex = 0;
   final List<int?> _answers = [null, null];
 
-  bool get _isAnimating =>
-      _stage == _WalkthroughStage.inflate || _stage == _WalkthroughStage.releaseToSys || _stage == _WalkthroughStage.releaseToDia;
-
-  int get _stepNumber => switch (_stage) {
-        _WalkthroughStage.ready => 1,
-        _WalkthroughStage.inflate => 2,
-        _WalkthroughStage.releaseToSys => 3,
-        _WalkthroughStage.systolicPause => 4,
-        _WalkthroughStage.releaseToDia => 5,
-        _WalkthroughStage.diastolicPause => 6,
-        _WalkthroughStage.finalReading => 7,
-        _WalkthroughStage.quickCheck => 8,
-      };
-
-  String get _teachingTitle => switch (_stage) {
-        _WalkthroughStage.ready => 'Start with the cuff',
-        _WalkthroughStage.inflate => 'Inflate above expected systolic',
-        _WalkthroughStage.releaseToSys => 'Release slowly and listen',
-        _WalkthroughStage.systolicPause => 'First beats = systolic',
-        _WalkthroughStage.releaseToDia => 'Keep listening while releasing',
-        _WalkthroughStage.diastolicPause => 'Sounds disappear = diastolic',
-        _WalkthroughStage.finalReading => 'Document the reading',
-        _WalkthroughStage.quickCheck => 'Quick check',
-      };
-
-  String get _teachingText => switch (_stage) {
-        _WalkthroughStage.ready => 'Place the cuff correctly, find the brachial pulse, and get ready to inflate.',
-        _WalkthroughStage.inflate => 'The cuff is pumped to 170 because this is above the expected systolic of 118. Going above systolic briefly stops blood flow under the cuff.',
-        _WalkthroughStage.releaseToSys => 'Open the valve slowly. In real practice, release around 2–3 mmHg per second.',
-        _WalkthroughStage.systolicPause => 'The first clear Korotkoff beats you hear are the systolic pressure — the top number.',
-        _WalkthroughStage.releaseToDia => 'Keep releasing slowly. Beats continue while cuff pressure is between systolic and diastolic.',
-        _WalkthroughStage.diastolicPause => 'When the beats disappear, that point is the diastolic pressure — the bottom number.',
-        _WalkthroughStage.finalReading => 'This reading is written as systolic over diastolic: 118/76 mmHg. This example is normal for an adult in this app.',
-        _WalkthroughStage.quickCheck => 'Answer two quick questions, then switch to Practice Mode to try it yourself.',
-      };
+  bool get _isPlaying => _timer?.isActive == true || _autoAdvanceTimer?.isActive == true;
 
   bool get _showBeats =>
-      _stage == _WalkthroughStage.systolicPause ||
-      _stage == _WalkthroughStage.releaseToDia ||
-      (_stage == _WalkthroughStage.releaseToSys && _pressure <= _sys && _pressure > _dia);
+      _stage == _VideoStage.systolicPopup ||
+      _stage == _VideoStage.releaseToDia ||
+      (_stage == _VideoStage.releaseToSys && _pressure <= _sys && _pressure > _dia);
 
-  bool get _highlightSys => _stage == _WalkthroughStage.systolicPause;
-  bool get _highlightDia => _stage == _WalkthroughStage.diastolicPause;
+  bool get _showStethoscopePlacement =>
+      _stage == _VideoStage.placement ||
+      _stage == _VideoStage.inflate ||
+      _stage == _VideoStage.targetPopup ||
+      _stage == _VideoStage.releaseToSys ||
+      _stage == _VideoStage.systolicPopup ||
+      _stage == _VideoStage.releaseToDia ||
+      _stage == _VideoStage.diastolicPopup;
+
+  bool get _highlightBrachial => _stage == _VideoStage.placement;
+  bool get _highlightTarget => _stage == _VideoStage.targetPopup || _stage == _VideoStage.inflate;
+  bool get _highlightSys => _stage == _VideoStage.systolicPopup;
+  bool get _highlightDia => _stage == _VideoStage.diastolicPopup;
+
+  _PopUpData get _popUpData => switch (_stage) {
+        _VideoStage.ready => const _PopUpData(
+            icon: Icons.play_circle_outline,
+            title: 'Watch one BP reading',
+            message: 'Tap Play. The simulator will stop at each key point.',
+            color: AppColors.emsBlue,
+          ),
+        _VideoStage.placement => const _PopUpData(
+            icon: Icons.hearing,
+            title: 'Stethoscope here',
+            message: 'Place bell/diaphragm over the brachial artery, just above the elbow crease.',
+            color: AppColors.emsBlue,
+          ),
+        _VideoStage.inflate => const _PopUpData(
+            icon: Icons.arrow_upward,
+            title: 'Pump up',
+            message: 'Cuff pressure rises above the expected systolic.',
+            color: AppColors.emsBlue,
+          ),
+        _VideoStage.targetPopup => const _PopUpData(
+            icon: Icons.flag,
+            title: 'Stop around 170',
+            message: 'High enough to be above the 118 systolic example.',
+            color: Colors.orange,
+          ),
+        _VideoStage.releaseToSys => const _PopUpData(
+            icon: Icons.south,
+            title: 'Release slowly',
+            message: 'Let the needle fall slowly. Listen for the first sound.',
+            color: AppColors.emsBlue,
+          ),
+        _VideoStage.systolicPopup => const _PopUpData(
+            icon: Icons.graphic_eq,
+            title: 'First sound = 118',
+            message: 'The first beat heard is systolic, the top number.',
+            color: Colors.green,
+          ),
+        _VideoStage.releaseToDia => const _PopUpData(
+            icon: Icons.south,
+            title: 'Keep releasing',
+            message: 'Sounds continue while pressure drops toward diastolic.',
+            color: AppColors.emsBlue,
+          ),
+        _VideoStage.diastolicPopup => const _PopUpData(
+            icon: Icons.volume_off,
+            title: 'Sounds stop = 76',
+            message: 'When beats disappear, that is diastolic, the bottom number.',
+            color: AppColors.emsBlue,
+          ),
+        _VideoStage.finalReading => const _PopUpData(
+            icon: Icons.check_circle,
+            title: 'BP 118/76',
+            message: 'This is Normal for the adult range used in this app.',
+            color: Colors.green,
+          ),
+        _VideoStage.quickCheck => const _PopUpData(
+            icon: Icons.quiz_outlined,
+            title: 'Quick check',
+            message: 'Two questions, then practice it yourself.',
+            color: AppColors.emsBlue,
+          ),
+      };
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _cancelTimers();
     super.dispose();
   }
 
-  void _startWalkthrough() {
+  void _cancelTimers() {
     _timer?.cancel();
+    _autoAdvanceTimer?.cancel();
+    _timer = null;
+    _autoAdvanceTimer = null;
+  }
+
+  void _startVideo() {
+    _cancelTimers();
     setState(() {
       _pressure = 0;
-      _stage = _WalkthroughStage.inflate;
+      _stage = _VideoStage.placement;
       _questionIndex = 0;
       _answers[0] = null;
       _answers[1] = null;
     });
-    _timer = Timer.periodic(const Duration(milliseconds: 50), (_) => _tick());
+    _scheduleNext(const Duration(seconds: 2), () => _beginInflation());
   }
 
-  void _tick() {
+  void _beginInflation() {
     if (!mounted) return;
-    switch (_stage) {
-      case _WalkthroughStage.inflate:
-        setState(() => _pressure = (_pressure + 2.5).clamp(0.0, _maxInflation));
-        if (_pressure >= _maxInflation) {
-          setState(() => _stage = _WalkthroughStage.releaseToSys);
-        }
-        break;
-      case _WalkthroughStage.releaseToSys:
-        setState(() => _pressure = (_pressure - 0.65).clamp(0.0, _maxInflation));
-        if (_pressure <= _sys) {
-          _timer?.cancel();
-          setState(() {
-            _pressure = _sys.toDouble();
-            _stage = _WalkthroughStage.systolicPause;
-          });
-        }
-        break;
-      case _WalkthroughStage.releaseToDia:
-        setState(() => _pressure = (_pressure - 0.65).clamp(0.0, _maxInflation));
-        if (_pressure <= _dia) {
-          _timer?.cancel();
-          setState(() {
-            _pressure = _dia.toDouble();
-            _stage = _WalkthroughStage.diastolicPause;
-          });
-        }
-        break;
-      case _WalkthroughStage.ready:
-      case _WalkthroughStage.systolicPause:
-      case _WalkthroughStage.diastolicPause:
-      case _WalkthroughStage.finalReading:
-      case _WalkthroughStage.quickCheck:
-        break;
-    }
+    _cancelTimers();
+    setState(() => _stage = _VideoStage.inflate);
+    _timer = Timer.periodic(const Duration(milliseconds: 45), (_) {
+      if (!mounted) return;
+      final next = (_pressure + 2.8).clamp(0.0, _targetInflation);
+      setState(() => _pressure = next);
+      if (_pressure >= _targetInflation) {
+        _cancelTimers();
+        setState(() {
+          _pressure = _targetInflation;
+          _stage = _VideoStage.targetPopup;
+        });
+        _scheduleNext(const Duration(seconds: 2), () => _beginReleaseToSys());
+      }
+    });
   }
 
-  void _continueFromPause() {
-    _timer?.cancel();
-    if (_stage == _WalkthroughStage.systolicPause) {
-      setState(() => _stage = _WalkthroughStage.releaseToDia);
-      _timer = Timer.periodic(const Duration(milliseconds: 50), (_) => _tick());
-    } else if (_stage == _WalkthroughStage.diastolicPause) {
-      setState(() => _stage = _WalkthroughStage.finalReading);
-    } else if (_stage == _WalkthroughStage.finalReading) {
-      setState(() => _stage = _WalkthroughStage.quickCheck);
-    }
+  void _beginReleaseToSys() {
+    if (!mounted) return;
+    _cancelTimers();
+    setState(() => _stage = _VideoStage.releaseToSys);
+    _timer = Timer.periodic(const Duration(milliseconds: 55), (_) {
+      if (!mounted) return;
+      final next = (_pressure - 0.75).clamp(0.0, _targetInflation);
+      setState(() => _pressure = next);
+      if (_pressure <= _sys) {
+        _cancelTimers();
+        setState(() {
+          _pressure = _sys.toDouble();
+          _stage = _VideoStage.systolicPopup;
+        });
+        _scheduleNext(const Duration(seconds: 3), () => _beginReleaseToDia());
+      }
+    });
+  }
+
+  void _beginReleaseToDia() {
+    if (!mounted) return;
+    _cancelTimers();
+    setState(() => _stage = _VideoStage.releaseToDia);
+    _timer = Timer.periodic(const Duration(milliseconds: 55), (_) {
+      if (!mounted) return;
+      final next = (_pressure - 0.65).clamp(0.0, _targetInflation);
+      setState(() => _pressure = next);
+      if (_pressure <= _dia) {
+        _cancelTimers();
+        setState(() {
+          _pressure = _dia.toDouble();
+          _stage = _VideoStage.diastolicPopup;
+        });
+        _scheduleNext(const Duration(seconds: 3), () {
+          if (!mounted) return;
+          _cancelTimers();
+          setState(() => _stage = _VideoStage.finalReading);
+        });
+      }
+    });
+  }
+
+  void _scheduleNext(Duration delay, VoidCallback action) {
+    _autoAdvanceTimer?.cancel();
+    _autoAdvanceTimer = Timer(delay, action);
   }
 
   void _pauseResume() {
-    if (!_isAnimating) return;
-    if (_timer?.isActive == true) {
-      _timer?.cancel();
+    if (_stage == _VideoStage.ready || _stage == _VideoStage.quickCheck) return;
+    if (_timer?.isActive == true || _autoAdvanceTimer?.isActive == true) {
+      _cancelTimers();
       setState(() {});
-    } else {
-      _timer = Timer.periodic(const Duration(milliseconds: 50), (_) => _tick());
-      setState(() {});
+      return;
     }
+    switch (_stage) {
+      case _VideoStage.placement:
+        _scheduleNext(const Duration(seconds: 1), () => _beginInflation());
+        break;
+      case _VideoStage.inflate:
+        _beginInflation();
+        break;
+      case _VideoStage.targetPopup:
+        _scheduleNext(const Duration(milliseconds: 800), () => _beginReleaseToSys());
+        break;
+      case _VideoStage.releaseToSys:
+        _beginReleaseToSys();
+        break;
+      case _VideoStage.systolicPopup:
+        _scheduleNext(const Duration(milliseconds: 800), () => _beginReleaseToDia());
+        break;
+      case _VideoStage.releaseToDia:
+        _beginReleaseToDia();
+        break;
+      case _VideoStage.diastolicPopup:
+        _scheduleNext(const Duration(milliseconds: 800), () {
+          if (mounted) setState(() => _stage = _VideoStage.finalReading);
+        });
+        break;
+      case _VideoStage.finalReading:
+        break;
+      case _VideoStage.ready:
+      case _VideoStage.quickCheck:
+        break;
+    }
+    setState(() {});
   }
 
-  void _replay() {
-    _timer?.cancel();
+  void _goToQuickCheck() {
+    _cancelTimers();
     setState(() {
-      _pressure = 0;
-      _stage = _WalkthroughStage.ready;
+      _pressure = _dia.toDouble();
+      _stage = _VideoStage.quickCheck;
       _questionIndex = 0;
       _answers[0] = null;
       _answers[1] = null;
     });
   }
 
-  void _selectAnswer(int answerIndex) {
-    setState(() => _answers[_questionIndex] = answerIndex);
+  void _replay() {
+    _cancelTimers();
+    setState(() {
+      _pressure = 0;
+      _stage = _VideoStage.ready;
+      _questionIndex = 0;
+      _answers[0] = null;
+      _answers[1] = null;
+    });
   }
+
+  void _selectAnswer(int answerIndex) => setState(() => _answers[_questionIndex] = answerIndex);
 
   void _nextQuestionOrFinish() {
     if (_questionIndex == 0) {
@@ -174,23 +276,12 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
     }
   }
 
-  void _jumpToQuiz() {
-    _timer?.cancel();
-    setState(() {
-      _pressure = _dia.toDouble();
-      _stage = _WalkthroughStage.quickCheck;
-      _questionIndex = 0;
-      _answers[0] = null;
-      _answers[1] = null;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return EMSVitalsScaffold(
-      title: 'Blood Pressure Tutorial',
-      subtitle: 'Watch the BP dial move: pump up → slow release → first beats = systolic → beats disappear = diastolic.',
+      title: 'BP Tutorial',
+      subtitle: 'Simulator walkthrough with pop-up checkpoints.',
       showModePill: false,
       onBackPressed: () => context.go(AppRoutes.bloodPressure),
       onInfoPressed: _showTeachingSheet,
@@ -204,58 +295,64 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _ProgressHeader(step: _stepNumber, title: _teachingTitle),
-                    const SizedBox(height: 12),
                     Card(
+                      clipBehavior: Clip.antiAlias,
                       child: Padding(
                         padding: const EdgeInsets.all(AppSpacing.md),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 360),
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    BpGauge(pressure: _pressure),
-                                    if (_highlightSys) const _DialHighlight(label: 'SYS 118', alignment: Alignment.topRight),
-                                    if (_highlightDia) const _DialHighlight(label: 'DIA 76', alignment: Alignment.bottomRight),
-                                  ],
-                                ),
-                              ),
+                            _VideoProgress(stage: _stage),
+                            const SizedBox(height: 12),
+                            _BpSimulatorVideo(
+                              pressure: _pressure,
+                              showBeats: _showBeats,
+                              showStethoscope: _showStethoscopePlacement,
+                              highlightBrachial: _highlightBrachial,
+                              highlightTarget: _highlightTarget,
+                              highlightSys: _highlightSys,
+                              highlightDia: _highlightDia,
+                              popUp: _popUpData,
                             ),
-                            const SizedBox(height: 10),
-                            Text('Cuff pressure: ${_pressure.round()} mmHg', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 10),
-                            _BeatStrip(active: _showBeats, silentLabel: _stage == _WalkthroughStage.diastolicPause ? 'Sounds disappear' : 'No beats heard yet'),
-                            const SizedBox(height: 14),
-                            _TeachingCallout(stage: _stage, title: _teachingTitle, text: _teachingText),
-                            if (_stage == _WalkthroughStage.finalReading) ...[
+                            const SizedBox(height: 12),
+                            _SoundStrip(active: _showBeats, stage: _stage),
+                            if (_stage == _VideoStage.finalReading) ...[
                               const SizedBox(height: 12),
                               Container(
-                                width: double.infinity,
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: cs.primaryContainer,
+                                  color: Colors.green.withValues(alpha: 0.10),
                                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                                  border: Border.all(color: cs.primary.withValues(alpha: 0.22)),
+                                  border: Border.all(color: Colors.green.withValues(alpha: 0.32)),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Row(
                                   children: [
-                                    Text('Final BP Reading', style: context.textStyles.labelLarge?.copyWith(color: cs.onPrimaryContainer, fontWeight: FontWeight.w900)),
-                                    const SizedBox(height: 6),
-                                    Text('118/76 mmHg', style: context.textStyles.headlineMedium?.copyWith(color: cs.onPrimaryContainer, fontWeight: FontWeight.w900)),
-                                    const SizedBox(height: 6),
-                                    Text('Document: BP 118/76 mmHg', style: context.textStyles.bodyMedium?.copyWith(color: cs.onPrimaryContainer, height: 1.35)),
-                                    const SizedBox(height: 6),
-                                    Text('Normal adult BP in this app: about 90–119 systolic and 60–79 diastolic.', style: context.textStyles.bodySmall?.copyWith(color: cs.onPrimaryContainer, height: 1.35)),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Final reading', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900, color: Colors.green.shade800)),
+                                          const SizedBox(height: 4),
+                                          Text('118 / 76', style: context.textStyles.displaySmall?.copyWith(fontWeight: FontWeight.w900, color: cs.onSurface)),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(999)),
+                                      child: const Row(
+                                        children: [
+                                          Icon(Icons.check, color: Colors.white),
+                                          SizedBox(width: 6),
+                                          Text('Normal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                             ],
-                            if (_stage == _WalkthroughStage.quickCheck) ...[
+                            if (_stage == _VideoStage.quickCheck) ...[
                               const SizedBox(height: 12),
                               _QuickCheckCard(
                                 questionIndex: _questionIndex,
@@ -264,14 +361,17 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
                                 onContinue: _answers[_questionIndex] == null ? null : _nextQuestionOrFinish,
                               ),
                             ],
-                            const SizedBox(height: 16),
-                            _ControlRow(
+                            const SizedBox(height: 14),
+                            _VideoControls(
                               stage: _stage,
-                              timerActive: _timer?.isActive == true,
-                              onStart: _startWalkthrough,
-                              onContinue: _continueFromPause,
+                              isPlaying: _isPlaying,
+                              onPlay: _stage == _VideoStage.ready ? _startVideo : _pauseResume,
+                              onQuiz: _goToQuickCheck,
                               onReplay: _replay,
-                              onPauseResume: _pauseResume,
+                              onPractice: () {
+                                context.read<AppState>().setMode(TrainingMode.practice);
+                                context.go('${AppRoutes.bloodPressure}?flow=practice');
+                              },
                             ),
                           ],
                         ),
@@ -290,20 +390,12 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: _jumpToQuiz,
+                            onPressed: _goToQuickCheck,
                             icon: const Icon(Icons.quiz_outlined),
                             label: const Text('Quiz'),
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    const _CommonMistakesCard(),
-                    const SizedBox(height: 12),
-                    EMSResultBox(
-                      title: 'Ready to try it?',
-                      message: 'After the tutorial, use Practice Mode to pump, release, record SYS/DIA, and choose Normal or Not Normal.',
-                      kind: EMSResultKind.info,
                     ),
                   ],
                 ),
@@ -340,17 +432,17 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text('Manual BP teaching points', style: context.textStyles.titleLarge?.copyWith(fontWeight: FontWeight.w900))),
+                          Expanded(child: Text('What is happening?', style: context.textStyles.titleLarge?.copyWith(fontWeight: FontWeight.w900))),
                           IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.close)),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      const _MiniTeachingPoint(text: 'Blood pressure checks how much pressure blood puts on the artery walls.'),
-                      const _MiniTeachingPoint(text: 'The cuff squeezes the arm until blood flow is temporarily blocked.'),
-                      const _MiniTeachingPoint(text: 'You pump above the expected systolic pressure, then release slowly, about 2–3 mmHg/sec in real practice.'),
-                      const _MiniTeachingPoint(text: 'First clear beats heard = systolic/top number, when blood first starts moving again.'),
-                      const _MiniTeachingPoint(text: 'Beats disappear = diastolic/bottom number, when blood is flowing without cuff restriction.'),
-                      const _MiniTeachingPoint(text: 'Document as systolic over diastolic, such as BP 118/76 mmHg.'),
+                      const _MiniTeachingPoint(icon: Icons.hearing, text: 'Stethoscope goes over the brachial artery, just above the elbow crease.'),
+                      const _MiniTeachingPoint(icon: Icons.arrow_upward, text: 'Pump above the expected systolic so blood flow is briefly blocked.'),
+                      const _MiniTeachingPoint(icon: Icons.south, text: 'Release slowly so the first and last sounds are not missed.'),
+                      const _MiniTeachingPoint(icon: Icons.graphic_eq, text: 'First clear beat = systolic/top number.'),
+                      const _MiniTeachingPoint(icon: Icons.volume_off, text: 'Sounds disappear = diastolic/bottom number.'),
+                      const _MiniTeachingPoint(icon: Icons.edit_note, text: 'Record as BP 118/76 mmHg.'),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
@@ -369,96 +461,258 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   }
 }
 
-enum _WalkthroughStage { ready, inflate, releaseToSys, systolicPause, releaseToDia, diastolicPause, finalReading, quickCheck }
+enum _VideoStage { ready, placement, inflate, targetPopup, releaseToSys, systolicPopup, releaseToDia, diastolicPopup, finalReading, quickCheck }
 
-class _ProgressHeader extends StatelessWidget {
-  const _ProgressHeader({required this.step, required this.title});
-  final int step;
+class _PopUpData {
+  const _PopUpData({required this.icon, required this.title, required this.message, required this.color});
+  final IconData icon;
   final String title;
+  final String message;
+  final Color color;
+}
+
+class _VideoProgress extends StatelessWidget {
+  const _VideoProgress({required this.stage});
+  final _VideoStage stage;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: AppColors.headerGradient.map((c) => c.withValues(alpha: 0.13)).toList()),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.72), borderRadius: BorderRadius.circular(16)),
-            child: Center(child: Text('$step/8', style: context.textStyles.labelLarge?.copyWith(color: AppColors.emsBlue, fontWeight: FontWeight.w900))),
-          ),
-          const SizedBox(width: 12),
+    final step = switch (stage) {
+      _VideoStage.ready => 0,
+      _VideoStage.placement => 1,
+      _VideoStage.inflate => 2,
+      _VideoStage.targetPopup => 2,
+      _VideoStage.releaseToSys => 3,
+      _VideoStage.systolicPopup => 4,
+      _VideoStage.releaseToDia => 5,
+      _VideoStage.diastolicPopup => 6,
+      _VideoStage.finalReading => 7,
+      _VideoStage.quickCheck => 8,
+    };
+    return Row(
+      children: [
+        for (var i = 1; i <= 7; i++) ...[
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-                const SizedBox(height: 5),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: step / 8,
-                    minHeight: 8,
-                    backgroundColor: Colors.white.withValues(alpha: 0.45),
-                  ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              height: 8,
+              decoration: BoxDecoration(
+                color: i <= step ? AppColors.emsBlue : cs.outline.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          if (i != 7) const SizedBox(width: 5),
+        ],
+      ],
+    );
+  }
+}
+
+class _BpSimulatorVideo extends StatelessWidget {
+  const _BpSimulatorVideo({
+    required this.pressure,
+    required this.showBeats,
+    required this.showStethoscope,
+    required this.highlightBrachial,
+    required this.highlightTarget,
+    required this.highlightSys,
+    required this.highlightDia,
+    required this.popUp,
+  });
+
+  final double pressure;
+  final bool showBeats;
+  final bool showStethoscope;
+  final bool highlightBrachial;
+  final bool highlightTarget;
+  final bool highlightSys;
+  final bool highlightDia;
+  final _PopUpData popUp;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 520;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [cs.surfaceContainerHighest.withValues(alpha: 0.26), cs.surface],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            border: Border.all(color: cs.outline.withValues(alpha: 0.14)),
+          ),
+          child: compact
+              ? Column(
+                  children: [
+                    _SimGaugePanel(
+                      pressure: pressure,
+                      showBeats: showBeats,
+                      highlightTarget: highlightTarget,
+                      highlightSys: highlightSys,
+                      highlightDia: highlightDia,
+                    ),
+                    const SizedBox(height: 12),
+                    _ArmCuffSim(showStethoscope: showStethoscope, highlightBrachial: highlightBrachial),
+                    const SizedBox(height: 12),
+                    _CheckpointPopup(popUp: popUp),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        children: [
+                          _ArmCuffSim(showStethoscope: showStethoscope, highlightBrachial: highlightBrachial),
+                          const SizedBox(height: 12),
+                          _CheckpointPopup(popUp: popUp),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 4,
+                      child: _SimGaugePanel(
+                        pressure: pressure,
+                        showBeats: showBeats,
+                        highlightTarget: highlightTarget,
+                        highlightSys: highlightSys,
+                        highlightDia: highlightDia,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
-class _TeachingCallout extends StatelessWidget {
-  const _TeachingCallout({required this.stage, required this.title, required this.text});
-  final _WalkthroughStage stage;
-  final String title;
-  final String text;
+class _ArmCuffSim extends StatelessWidget {
+  const _ArmCuffSim({required this.showStethoscope, required this.highlightBrachial});
+  final bool showStethoscope;
+  final bool highlightBrachial;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final isSys = stage == _WalkthroughStage.systolicPause;
-    final isDia = stage == _WalkthroughStage.diastolicPause;
-    final color = isSys ? Colors.green : (isDia ? AppColors.emsBlue : cs.primary);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: color.withValues(alpha: 0.28)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return AspectRatio(
+      aspectRatio: 2.65,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Icon(isSys ? Icons.hearing : (isDia ? Icons.volume_off : Icons.school), color: color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
-                const SizedBox(height: 4),
-                Text(text, style: context.textStyles.bodyMedium?.copyWith(height: 1.42)),
-                if (isSys) ...[
-                  const SizedBox(height: 8),
-                  Text('Systolic = top number', style: context.textStyles.titleMedium?.copyWith(color: Colors.green, fontWeight: FontWeight.w900)),
+          Positioned.fill(
+            top: 28,
+            bottom: 22,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFE9B48B).withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.brown.withValues(alpha: 0.14)),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 18,
+            top: 4,
+            bottom: 0,
+            width: 100,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF193553),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.14), blurRadius: 14, offset: const Offset(0, 6))],
+              ),
+              child: Center(
+                child: RotatedBox(
+                  quarterTurns: 3,
+                  child: Text('CUFF', style: context.textStyles.labelLarge?.copyWith(color: Colors.white.withValues(alpha: 0.72), fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 120,
+            top: 24,
+            bottom: 20,
+            child: Container(width: 2, color: Colors.brown.withValues(alpha: 0.30)),
+          ),
+          Positioned(
+            left: 126,
+            top: 18,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: highlightBrachial ? 54 : 38,
+              height: highlightBrachial ? 54 : 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.emsBlue.withValues(alpha: highlightBrachial ? 0.20 : 0.08),
+                border: Border.all(color: AppColors.emsBlue.withValues(alpha: highlightBrachial ? 0.78 : 0.22), width: highlightBrachial ? 3 : 1),
+              ),
+              child: Icon(Icons.my_location, color: AppColors.emsBlue.withValues(alpha: highlightBrachial ? 0.98 : 0.55), size: highlightBrachial ? 26 : 18),
+            ),
+          ),
+          Positioned(
+            left: 144,
+            top: 78,
+            child: Text('elbow crease', style: context.textStyles.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w800)),
+          ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            left: showStethoscope ? 138 : 150,
+            top: showStethoscope ? 28 : 44,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 250),
+              opacity: showStethoscope ? 1 : 0.25,
+              child: Column(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.emsBlue.withValues(alpha: 0.45), width: 3),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 5))],
+                    ),
+                    child: const Icon(Icons.hearing, color: AppColors.emsBlue, size: 24),
+                  ),
+                  Container(width: 2, height: 22, color: AppColors.emsBlue.withValues(alpha: 0.45)),
                 ],
-                if (isDia) ...[
-                  const SizedBox(height: 8),
-                  Text('Diastolic = bottom number', style: context.textStyles.titleMedium?.copyWith(color: AppColors.emsBlue, fontWeight: FontWeight.w900)),
-                ],
-              ],
+              ),
+            ),
+          ),
+          Positioned(
+            left: 112,
+            top: 100,
+            right: 12,
+            child: SizedBox(
+              height: 52,
+              child: CustomPaint(
+                painter: _TubePainter(color: cs.onSurface.withValues(alpha: 0.55)),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 20,
+            bottom: 0,
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 5))],
+              ),
+              child: const Icon(Icons.arrow_upward, color: Colors.white),
             ),
           ),
         ],
@@ -467,10 +721,77 @@ class _TeachingCallout extends StatelessWidget {
   }
 }
 
-class _DialHighlight extends StatelessWidget {
-  const _DialHighlight({required this.label, required this.alignment});
+class _TubePainter extends CustomPainter {
+  const _TubePainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..cubicTo(size.width * 0.25, size.height * 0.85, size.width * 0.62, size.height * 0.05, size.width, size.height * 0.78);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TubePainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _SimGaugePanel extends StatelessWidget {
+  const _SimGaugePanel({required this.pressure, required this.showBeats, required this.highlightTarget, required this.highlightSys, required this.highlightDia});
+  final double pressure;
+  final bool showBeats;
+  final bool highlightTarget;
+  final bool highlightSys;
+  final bool highlightDia;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AspectRatio(
+          aspectRatio: 1,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              BpGauge(pressure: pressure),
+              if (highlightTarget) const _GaugeBadge(label: '170', sublabel: 'target', alignment: Alignment.topRight, color: Colors.orange),
+              if (highlightSys) const _GaugeBadge(label: '118', sublabel: 'SYS', alignment: Alignment.centerRight, color: Colors.green),
+              if (highlightDia) const _GaugeBadge(label: '76', sublabel: 'DIA', alignment: Alignment.bottomRight, color: AppColors.emsBlue),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(color: cs.surface, borderRadius: BorderRadius.circular(999), border: Border.all(color: cs.outline.withValues(alpha: 0.14))),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(showBeats ? Icons.graphic_eq : Icons.volume_off, color: showBeats ? Colors.green : cs.onSurfaceVariant),
+              const SizedBox(width: 8),
+              Text('${pressure.round()} mmHg', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GaugeBadge extends StatelessWidget {
+  const _GaugeBadge({required this.label, required this.sublabel, required this.alignment, required this.color});
   final String label;
+  final String sublabel;
   final Alignment alignment;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -481,15 +802,21 @@ class _DialHighlight extends StatelessWidget {
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
           child: Container(
-            margin: const EdgeInsets.all(20),
+            margin: const EdgeInsets.all(14),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: AppColors.gaugeNeedle.withValues(alpha: 0.50), width: 2),
+              color: Colors.white.withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withValues(alpha: 0.72), width: 2),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.16), blurRadius: 14, offset: const Offset(0, 6))],
             ),
-            child: Text(label, style: context.textStyles.labelLarge?.copyWith(color: AppColors.gaugeNeedle, fontWeight: FontWeight.w900)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: context.textStyles.titleLarge?.copyWith(color: color, fontWeight: FontWeight.w900)),
+                Text(sublabel, style: context.textStyles.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w900)),
+              ],
+            ),
           ),
         ),
       ),
@@ -497,20 +824,73 @@ class _DialHighlight extends StatelessWidget {
   }
 }
 
-class _BeatStrip extends StatelessWidget {
-  const _BeatStrip({required this.active, required this.silentLabel});
+class _CheckpointPopup extends StatelessWidget {
+  const _CheckpointPopup({required this.popUp});
+  final _PopUpData popUp;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(animation), child: child),
+      ),
+      child: Container(
+        key: ValueKey(popUp.title),
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: popUp.color.withValues(alpha: 0.11),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: popUp.color.withValues(alpha: 0.34)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(color: popUp.color, borderRadius: BorderRadius.circular(16)),
+              child: Icon(popUp.icon, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(popUp.title, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 3),
+                  Text(popUp.message, style: context.textStyles.bodySmall?.copyWith(height: 1.25)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SoundStrip extends StatelessWidget {
+  const _SoundStrip({required this.active, required this.stage});
   final bool active;
-  final String silentLabel;
+  final _VideoStage stage;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+    final label = switch (stage) {
+      _VideoStage.systolicPopup => 'lub… lub… first sound',
+      _VideoStage.releaseToDia => 'lub… lub… lub…',
+      _VideoStage.diastolicPopup => 'silence — sounds stopped',
+      _VideoStage.finalReading => 'reading complete',
+      _ => active ? 'lub… lub… lub…' : 'listening…',
+    };
+    return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: active ? Colors.green.withValues(alpha: 0.10) : cs.surfaceContainerHighest.withValues(alpha: 0.35),
+        color: active ? Colors.green.withValues(alpha: 0.10) : cs.surfaceContainerHighest.withValues(alpha: 0.32),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: active ? Colors.green.withValues(alpha: 0.28) : cs.outline.withValues(alpha: 0.14)),
       ),
@@ -518,75 +898,58 @@ class _BeatStrip extends StatelessWidget {
         children: [
           Icon(active ? Icons.graphic_eq : Icons.volume_off, color: active ? Colors.green : cs.onSurfaceVariant),
           const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              active ? 'Lub… lub… lub…  Beats heard' : silentLabel,
-              style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900, color: active ? Colors.green : cs.onSurfaceVariant),
-            ),
-          ),
+          Expanded(child: Text(label, style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900, color: active ? Colors.green : cs.onSurfaceVariant))),
         ],
       ),
     );
   }
 }
 
-class _ControlRow extends StatelessWidget {
-  const _ControlRow({required this.stage, required this.timerActive, required this.onStart, required this.onContinue, required this.onReplay, required this.onPauseResume});
-  final _WalkthroughStage stage;
-  final bool timerActive;
-  final VoidCallback onStart;
-  final VoidCallback onContinue;
+class _VideoControls extends StatelessWidget {
+  const _VideoControls({required this.stage, required this.isPlaying, required this.onPlay, required this.onQuiz, required this.onReplay, required this.onPractice});
+  final _VideoStage stage;
+  final bool isPlaying;
+  final VoidCallback onPlay;
+  final VoidCallback onQuiz;
   final VoidCallback onReplay;
-  final VoidCallback onPauseResume;
+  final VoidCallback onPractice;
 
   @override
   Widget build(BuildContext context) {
-    final showStart = stage == _WalkthroughStage.ready;
-    final showContinue = stage == _WalkthroughStage.systolicPause || stage == _WalkthroughStage.diastolicPause || stage == _WalkthroughStage.finalReading;
-    final showPause = stage == _WalkthroughStage.inflate || stage == _WalkthroughStage.releaseToSys || stage == _WalkthroughStage.releaseToDia;
+    final isReady = stage == _VideoStage.ready;
+    final isDone = stage == _VideoStage.finalReading;
+    final isQuiz = stage == _VideoStage.quickCheck;
+    if (isQuiz) return const SizedBox.shrink();
 
     return Column(
       children: [
-        if (showStart)
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: FilledButton.icon(
-              onPressed: onStart,
-              icon: const Icon(Icons.play_arrow, color: Colors.white),
-              label: const Text('Start Tutorial', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 54,
+                child: FilledButton.icon(
+                  onPressed: isDone ? onPractice : onPlay,
+                  icon: Icon(isDone ? Icons.fitness_center : (isReady ? Icons.play_arrow : (isPlaying ? Icons.pause : Icons.play_arrow)), color: Colors.white),
+                  label: Text(isDone ? 'Go to Practice' : (isReady ? 'Play Tutorial' : (isPlaying ? 'Pause' : 'Resume')), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                ),
+              ),
             ),
-          ),
-        if (showPause)
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: OutlinedButton.icon(
-              onPressed: onPauseResume,
-              icon: Icon(timerActive ? Icons.pause : Icons.play_arrow),
-              label: Text(timerActive ? 'Pause Tutorial' : 'Resume Tutorial'),
-            ),
-          ),
-        if (showContinue)
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: FilledButton.icon(
-              onPressed: onContinue,
-              icon: const Icon(Icons.arrow_forward, color: Colors.white),
-              label: Text(stage == _WalkthroughStage.finalReading ? 'Quick Check' : 'Continue', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
-            ),
-          ),
-        if (stage != _WalkthroughStage.ready) ...[
+            if (!isReady) ...[
+              const SizedBox(width: 10),
+              SizedBox(
+                height: 54,
+                child: OutlinedButton.icon(onPressed: onReplay, icon: const Icon(Icons.replay), label: const Text('Replay')),
+              ),
+            ],
+          ],
+        ),
+        if (isDone) ...[
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 50,
-            child: TextButton.icon(
-              onPressed: onReplay,
-              icon: const Icon(Icons.replay),
-              label: const Text('Replay Tutorial'),
-            ),
+            child: OutlinedButton.icon(onPressed: onQuiz, icon: const Icon(Icons.quiz_outlined), label: const Text('Quiz')),
           ),
         ],
       ],
@@ -603,16 +966,16 @@ class _QuickCheckCard extends StatelessWidget {
 
   static const _questions = [
     _QuizQuestion(
-      text: 'What does the first beat heard represent?',
-      options: ['Systolic pressure', 'Diastolic pressure', 'Pulse pressure'],
+      text: 'First sound heard?',
+      options: ['Systolic / top number', 'Diastolic / bottom number', 'Respiratory rate'],
       correctIndex: 0,
-      explanation: 'Correct: first clear sounds are systolic, the top number.',
+      explanation: 'First clear Korotkoff sound = systolic.',
     ),
     _QuizQuestion(
-      text: 'What does it mean when the beats disappear?',
-      options: ['Systolic pressure', 'Diastolic pressure', 'Respiratory rate'],
+      text: 'Sounds disappear?',
+      options: ['Systolic', 'Diastolic / bottom number', 'Pulse rate'],
       correctIndex: 1,
-      explanation: 'Correct: when the sounds disappear, that is diastolic, the bottom number.',
+      explanation: 'When the sounds disappear, record diastolic.',
     ),
   ];
 
@@ -647,7 +1010,7 @@ class _QuickCheckCard extends StatelessWidget {
           if (selectedAnswer != null) ...[
             const SizedBox(height: 10),
             EMSResultBox(
-              title: selectedAnswer == q.correctIndex ? 'Correct' : 'Review this',
+              title: selectedAnswer == q.correctIndex ? 'Correct' : 'Review',
               message: q.explanation,
               kind: selectedAnswer == q.correctIndex ? EMSResultKind.success : EMSResultKind.warning,
             ),
@@ -657,7 +1020,7 @@ class _QuickCheckCard extends StatelessWidget {
               height: 52,
               child: FilledButton(
                 onPressed: onContinue,
-                child: Text(questionIndex == 0 ? 'Next Question' : 'Go to Practice Mode'),
+                child: Text(questionIndex == 0 ? 'Next' : 'Practice'),
               ),
             ),
           ],
@@ -701,43 +1064,9 @@ class _AnswerTile extends StatelessWidget {
   }
 }
 
-class _CommonMistakesCard extends StatelessWidget {
-  const _CommonMistakesCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    const mistakes = [
-      'Releasing the valve too fast.',
-      'Calling the wrong number systolic.',
-      'Stopping before the sounds disappear.',
-      'Rounding every BP to the nearest 10.',
-      'Forgetting to reassess abnormal BP.',
-    ];
-    return EMSSectionCard(
-      title: 'Common Student Mistakes',
-      subtitle: 'Keep these in mind before moving to Practice Mode.',
-      child: Column(
-        children: [
-          for (final mistake in mistakes) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.error_outline, size: 18, color: cs.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Expanded(child: Text(mistake, style: context.textStyles.bodySmall?.copyWith(height: 1.35))),
-              ],
-            ),
-            if (mistake != mistakes.last) const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _MiniTeachingPoint extends StatelessWidget {
-  const _MiniTeachingPoint({required this.text});
+  const _MiniTeachingPoint({required this.icon, required this.text});
+  final IconData icon;
   final String text;
 
   @override
@@ -747,7 +1076,7 @@ class _MiniTeachingPoint extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 20),
+          Icon(icon, color: AppColors.emsBlue, size: 20),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: context.textStyles.bodyMedium?.copyWith(height: 1.35))),
         ],
