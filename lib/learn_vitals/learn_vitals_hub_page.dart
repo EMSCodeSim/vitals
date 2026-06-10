@@ -13,17 +13,17 @@ class LearnVitalsHubPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return EMSVitalsScaffold(
       title: 'Learn Vitals',
-      subtitle: 'Step 1: learn each vital, practice individual skills, then complete a full vital set like an EMT assessment.',
+      subtitle: 'Practice vital signs in a clean, step-by-step flow: quick drills first, then a full set.',
       onInfoPressed: () {
         EMSInfoSheet.show(
           context,
           title: 'How this section works',
           children: const [
-            Text('Start by learning what each vital means.'),
+            Text('Start with quick practice drills (BP, pulse, pupils, breath sounds).'),
             SizedBox(height: 12),
-            Text('Then practice specific skills like BP, pulse, pupils, and respiratory rate.'),
+            Text('Use “Learn Topics” when you want the deeper explanation and normal ranges.'),
             SizedBox(height: 12),
-            Text('Finish with a full vital set before moving into the patient assessment walkthrough.'),
+            Text('Finish with a full vital set practice, then move into the Assessment track.'),
           ],
         );
       },
@@ -42,21 +42,8 @@ class LearnVitalsHubPage extends StatelessWidget {
                     const NormalNotNormalCard(compact: true),
                     const SizedBox(height: 12),
                     EMSSectionCard(
-                      title: '1) Learn Each Vital',
-                      subtitle: 'Start here if you are new. Each vital uses the same thinking pattern: normal/not normal, what is wrong, and why it matters.',
-                      child: Column(
-                        children: [
-                          for (final v in VitalId.values) ...[
-                            _VitalTile(vital: v),
-                            if (v != VitalId.values.last) const SizedBox(height: 10),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    EMSSectionCard(
-                      title: '2) Practice Individual Skills',
-                      subtitle: 'Practice hands-on skills before the full vital set. Experienced students can skip straight to practice.',
+                      title: 'Quick Practice',
+                      subtitle: 'Short drills that feel like real EMT muscle-memory practice.',
                       child: Column(
                         children: [
                           _PracticeLinkTile(
@@ -81,18 +68,18 @@ class LearnVitalsHubPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           _PracticeLinkTile(
-                            title: 'Practice Respiratory Rate',
-                            subtitle: 'Open the respiratory rate lesson for the counting drill.',
-                            icon: Icons.air,
-                            onTap: () => context.push('${AppRoutes.learnVitals}/${VitalId.respiratoryRate.id}'),
+                            title: 'Practice Breath Sounds',
+                            subtitle: 'Listen and identify breath sounds by lung field.',
+                            icon: Icons.spatial_audio_off,
+                            onTap: () => context.push(AppRoutes.breathSound),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 12),
                     EMSSectionCard(
-                      title: '3) Complete a Full Vitals Set',
-                      subtitle: 'Put the pieces together: collect vitals, decide normal/not normal, explain why, then document the patient picture.',
+                      title: 'Full Vitals Set',
+                      subtitle: 'Put it together: collect vitals, decide normal/not normal, and document a patient picture.',
                       child: SizedBox(
                         width: double.infinity,
                         height: 54,
@@ -104,20 +91,34 @@ class LearnVitalsHubPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    EMSResultBox(
-                      title: 'Next step: Assessment Tools',
-                      message: 'New EMTs should master vitals first. If you already know vitals, skip ahead to assessment tools and start SAMPLE, OPQRST, primary assessment, and treatment decisions.',
-                      kind: EMSResultKind.info,
+                    const SizedBox(height: 12),
+                    EMSSectionCard(
+                      title: 'Learn Topics (optional)',
+                      subtitle: 'Tap a topic for normal ranges, what it means, and how to document it.',
+                      child: Theme(
+                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          childrenPadding: const EdgeInsets.only(top: 12),
+                          title: Text('Show vital lessons', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+                          subtitle: Text('Blood pressure, pulse, respirations, skin, SpO₂, AVPU, AAOx4…', style: context.textStyles.bodySmall?.copyWith(height: 1.35, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          children: [
+                            for (final v in VitalId.values) ...[
+                              _VitalTile(vital: v),
+                              if (v != VitalId.values.last) const SizedBox(height: 10),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: AppSpacing.md),
                     SizedBox(
                       height: 50,
                       child: OutlinedButton.icon(
                         onPressed: () => context.push(AppRoutes.assessmentTools),
                         style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
-                        icon: const Icon(Icons.fast_forward),
-                        label: const Text('Skip to Assessment Tools'),
+                        icon: const Icon(Icons.arrow_forward),
+                        label: const Text('Go to Assessment'),
                       ),
                     ),
                   ],
