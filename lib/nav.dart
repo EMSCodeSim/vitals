@@ -157,7 +157,15 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.bloodPressure,
         name: 'bloodPressure',
-        pageBuilder: (context, state) => const MaterialPage(child: BloodPressureSimulatorPage()),
+        pageBuilder: (context, state) {
+          final flow = state.uri.queryParameters['flow'];
+          final initialMode = switch (flow) {
+            'tutorial' => BpStartMode.tutorial,
+            'practice' => BpStartMode.practice,
+            _ => BpStartMode.chooser,
+          };
+          return MaterialPage(child: BloodPressureSimulatorPage(initialMode: initialMode));
+        },
       ),
       GoRoute(
         path: AppRoutes.pulseTest,
