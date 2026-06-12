@@ -398,9 +398,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
                         breathScale: _breathScale,
                         breathProgress: _breathController,
                         onPresetChanged: running ? null : (v) => setState(() => _preset = v ?? _preset),
-                        // The panel already disables the segmented control while running.
-                        // Keep this callback non-null to satisfy ValueChanged<int>.
-                        onCountSecondsChanged: (v) => setState(() => _countSeconds = v),
+                        onCountSecondsChanged: running ? null : (v) => setState(() => _countSeconds = v),
                         onPatternChanged: (v) => setState(() => _patternPick = v),
                         onStart: _startPractice,
                         onTapBreath: _registerTap,
