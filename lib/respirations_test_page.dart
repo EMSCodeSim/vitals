@@ -1,0 +1,804 @@
+import 'dart:async';
+import 'dart:math';
+
+import 'package:emscode_sim_vitals/app/app_state.dart';
+import 'package:emscode_sim_vitals/nav.dart';
+import 'package:emscode_sim_vitals/pulse/pulse_beep_player.dart';
+import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
+import 'package:emscode_sim_vitals/shared/training_summary_page.dart';
+import 'package:emscode_sim_vitals/theme.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+enum RespirationPattern { regular, shallow, labored, irregular }
+
+extension RespirationPatternLabel on RespirationPattern {
+  String get label => switch (this) {
+    RespirationPattern.regular => 'Regular / unlabored',
+    RespirationPattern.shallow => 'Shallow',
+    RespirationPattern.labored => 'Labored',
+    RespirationPattern.irregular => 'Irregular',
+  };
+}
+
+enum RespirationRangePreset { slow, normalAdult, fast, distress, irregular }
+
+extension RespirationRangePresetLabel on RespirationRangePreset {
+  String get label => switch (this) {
+    RespirationRangePreset.slow => 'Slow respirations',
+    RespirationRangePreset.normalAdult => 'Normal adult',
+    RespirationRangePreset.fast => 'Fast respirations',
+    RespirationRangePreset.distress => 'Respiratory distress',
+    RespirationRangePreset.irregular => 'Irregular pattern',
+  };
+
+  (int min, int max) get rrRange => switch (this) {
+    RespirationRangePreset.slow => (6, 10),
+    RespirationRangePreset.normalAdult => (12, 20),
+    RespirationRangePreset.fast => (22, 28),
+    RespirationRangePreset.distress => (30, 38),
+    RespirationRangePreset.irregular => (10, 26),
+  };
+}
+
+class RespirationsTestPage extends StatefulWidget {
+  const RespirationsTestPage({super.key});
+
+  @override
+  State<RespirationsTestPage> createState() => _RespirationsTestPageState();
+}
+
+class _RespirationsTestPageState extends State<RespirationsTestPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  final _rng = Random();
+  final PulseBeepPlayer _cue = PulseBeepPlayer();
+
+  RespirationRangePreset _preset = RespirationRangePreset.normalAdult;
+  int _countSeconds = 30;
+  int _walkthroughScreen = 0;
+
+  bool _guidedRun = false;
+  bool _running = false;
+  int _remainingSeconds = 0;
+  int _liveBreathCount = 0;
+  int _tapCount = 0;
+
+  int? _actualRr;
+  RespirationPattern? _actualPattern;
+  RespirationPattern? _patternPick;
+
+  String? _feedback;
+  EMSResultKind? _feedbackKind;
+
+  Timer? _breathTimer;
+  Timer? _countdownTimer;
+  DateTime? _startTime;
+
+  late final AnimationController _breathController;
+  late final Animation<double> _breathScale;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _breathController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+    _breathScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.18).chain(CurveTween(curve: Curves.easeInOutCubic)), weight: 45),
+      TweenSequenceItem(tween: Tween(begin: 1.18, end: 1.0).chain(CurveTween(curve: Curves.easeInOutCubic)), weight: 55),
+    ]).animate(_breathController);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppState>().markModuleOpened(TrainingModule.respirations);
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopAll();
+    _breathController.dispose();
+    _cue.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _stopAll();
+    }
+  }
+
+  Future<void> _unlockAudio() => _cue.unlockFromUserGesture();
+
+  void _stopAll() {
+    _breathTimer?.cancel();
+    _breathTimer = null;
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
+    _breathController.stop();
+    _cue.stop();
+    _running = false;
+  }
+
+  int _randIn(int min, int maxVal) => min + _rng.nextInt(max(1, maxVal - min + 1));
+
+  RespirationPattern _randomPatternForPreset(RespirationRangePreset p) {
+    if (p == RespirationRangePreset.irregular) return RespirationPattern.irregular;
+    if (p == RespirationRangePreset.distress) return _rng.nextBool() ? RespirationPattern.labored : RespirationPattern.shallow;
+    if (p == RespirationRangePreset.fast) return _rng.nextDouble() < 0.35 ? RespirationPattern.labored : RespirationPattern.regular;
+    if (p == RespirationRangePreset.slow) return _rng.nextDouble() < 0.35 ? RespirationPattern.shallow : RespirationPattern.regular;
+    return _rng.nextDouble() < 0.12 ? RespirationPattern.shallow : RespirationPattern.regular;
+  }
+
+  void _goToWalkthroughScreen(int screen) {
+    _stopAll();
+    setState(() {
+      _walkthroughScreen = screen.clamp(0, 2).toInt();
+      _guidedRun = false;
+      _remainingSeconds = 0;
+      _liveBreathCount = 0;
+      _tapCount = 0;
+      _feedback = null;
+      _feedbackKind = null;
+    });
+  }
+
+  Future<void> _startGuidedRespirations() async {
+    await _unlockAudio();
+    _stopAll();
+
+    const rr = 16;
+    const pattern = RespirationPattern.regular;
+
+    setState(() {
+      _actualRr = rr;
+      _actualPattern = pattern;
+      _countSeconds = 30;
+      _guidedRun = true;
+      _running = true;
+      _remainingSeconds = 30;
+      _liveBreathCount = 0;
+      _tapCount = 0;
+      _patternPick = pattern;
+      _feedback = null;
+      _feedbackKind = null;
+      _startTime = DateTime.now();
+    });
+
+    _scheduleBreaths(rr: rr, pattern: pattern);
+    _startCountdown();
+  }
+
+  Future<void> _startPractice() async {
+    await _unlockAudio();
+    _stopAll();
+
+    final (minRr, maxRr) = _preset.rrRange;
+    final rr = _randIn(minRr, maxRr);
+    final pattern = _randomPatternForPreset(_preset);
+
+    setState(() {
+      _actualRr = rr;
+      _actualPattern = pattern;
+      _guidedRun = false;
+      _running = true;
+      _remainingSeconds = _countSeconds;
+      _liveBreathCount = 0;
+      _tapCount = 0;
+      _patternPick = null;
+      _feedback = null;
+      _feedbackKind = null;
+      _startTime = DateTime.now();
+    });
+
+    _scheduleBreaths(rr: rr, pattern: pattern);
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_remainingSeconds <= 1) {
+        t.cancel();
+        _finish();
+        return;
+      }
+      setState(() => _remainingSeconds--);
+    });
+  }
+
+  void _scheduleBreaths({required int rr, required RespirationPattern pattern}) {
+    final baseIntervalMs = ((60 / rr) * 1000).round().clamp(900, 10000);
+    _breathController.duration = Duration(milliseconds: min(1800, max(850, (baseIntervalMs * 0.50).round())));
+
+    Future<void> tickOnce() async {
+      if (!mounted || !_running) return;
+      _breathController.forward(from: 0);
+      setState(() => _liveBreathCount++);
+      unawaited(HapticFeedback.selectionClick());
+      try {
+        final volume = switch (pattern) {
+          RespirationPattern.shallow => 0.35,
+          RespirationPattern.labored => 0.80,
+          RespirationPattern.irregular => 0.60,
+          RespirationPattern.regular => 0.50,
+        };
+        await _cue.playOnce(volume: volume);
+      } catch (e) {
+        debugPrint('Respiration cue failed: $e');
+      }
+    }
+
+    void scheduleNext({required bool first}) {
+      if (!_running) return;
+      final jitter = pattern == RespirationPattern.irregular ? (_rng.nextInt(1400) - 700) : 0;
+      final delay = first ? max(700, baseIntervalMs ~/ 2) : (baseIntervalMs + jitter).clamp(650, 11000);
+      _breathTimer = Timer(Duration(milliseconds: delay), () async {
+        await tickOnce();
+        scheduleNext(first: false);
+      });
+    }
+
+    scheduleNext(first: true);
+  }
+
+  void _registerTap() {
+    if (!_running) return;
+    setState(() => _tapCount++);
+  }
+
+  void _stopAndRefresh() {
+    _stopAll();
+    if (!mounted) return;
+    setState(() {
+      _guidedRun = false;
+      _remainingSeconds = 0;
+    });
+  }
+
+  void _finish() {
+    final wasGuidedRun = _guidedRun;
+    final liveCount = _liveBreathCount;
+    _stopAll();
+
+    final rr = _actualRr;
+    if (rr == null) return;
+
+    if (wasGuidedRun) {
+      final estimated = ((liveCount * 60) / 30).round();
+      setState(() {
+        _guidedRun = false;
+        _feedbackKind = EMSResultKind.success;
+        _feedback = '30-second respirations walkthrough complete.\nLive count: $liveCount breaths in 30 seconds.\nEstimated respiratory rate: $liveCount × 2 = $estimated/min.\n\nTeaching point: Count one full rise and fall as one breath. Watch quietly so the patient does not change their breathing. Document rate, effort, depth, and regularity.';
+      });
+      return;
+    }
+
+    final estimated = ((_tapCount * 60) / _countSeconds).round();
+    final diff = (estimated - rr).abs();
+    final tol = _countSeconds == 30 ? 2 : 4;
+    final within = diff <= tol;
+    final patternOk = _patternPick != null && (_patternPick == _actualPattern || (_actualPattern == RespirationPattern.labored && _patternPick == RespirationPattern.shallow));
+
+    final mode = context.read<AppState>().mode;
+    final points = (within ? 1 : 0) + (patternOk ? 1 : 0);
+    const totalPoints = 2;
+    final scorePercent = ((points / totalPoints) * 100).round();
+    final explanation = 'Teaching point: Adult respiratory rate is commonly about 12–20/min, but rate alone is not enough. Document work of breathing, depth, regularity, ability to speak, skin color, SpO₂, and response to treatment.';
+
+    if (mode == TrainingMode.test) {
+      unawaited(
+        TrainingSummaryPage.recordAndShow(
+          context,
+          args: TrainingSummaryArgs(
+            module: TrainingModule.respirations,
+            scorePercent: scorePercent,
+            correct: points,
+            total: totalPoints,
+            timeSpent: _startTime == null ? Duration.zero : DateTime.now().difference(_startTime!),
+            recommendedReview: explanation,
+            missedTeachingPoints: [
+              if (!within) 'Count respirations for the full interval and multiply correctly.',
+              if (!patternOk) 'Respiratory quality matters: shallow, labored, irregular, or unlabored changes patient interpretation.',
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _feedbackKind = within ? EMSResultKind.success : EMSResultKind.warning;
+      _feedback = 'Actual: $rr/min (${_actualPattern?.label ?? '—'})\nYour count: $_tapCount breaths in $_countSeconds seconds\nYour estimate: $estimated/min\nDifference: $diff/min (tolerance ±$tol)\n\n${within ? '✅ Within tolerance.' : '❌ Outside tolerance.'}\n\n$explanation';
+    });
+  }
+
+  void _showInfo() {
+    EMSInfoSheet.show(
+      context,
+      title: 'Respirations walkthrough',
+      children: const [
+        Text('Use the photo cue first, then run a 30-second visual count. One full rise and fall equals one breath. Practice mode lets students tap each breath and compare their documented rate.'),
+        SizedBox(height: 12),
+        Text('Training only — not medical advice.'),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final mode = context.select<AppState, TrainingMode>((s) => s.mode);
+    final running = _running;
+
+    return EMSVitalsScaffold(
+      title: 'Respirations',
+      subtitle: 'Visual walkthrough: watch chest rise, count 30 seconds, document rate + effort.',
+      onInfoPressed: _showInfo,
+      onBackPressed: () {
+        _stopAll();
+        context.go(AppRoutes.home);
+      },
+      bodySlivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  children: [
+                    _RespirationStepHeader(
+                      current: _walkthroughScreen,
+                      running: running,
+                      onSelect: _goToWalkthroughScreen,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (_walkthroughScreen == 0)
+                      _RespirationPhotoPanel(onNext: () => _goToWalkthroughScreen(1))
+                    else if (_walkthroughScreen == 1)
+                      _RespirationGuidedPanel(
+                        running: running,
+                        remainingSeconds: _remainingSeconds,
+                        liveBreathCount: _liveBreathCount,
+                        breathScale: _breathScale,
+                        onStart: _startGuidedRespirations,
+                        onStop: _stopAndRefresh,
+                        onNextPractice: () => _goToWalkthroughScreen(2),
+                      )
+                    else
+                      _RespirationPracticePanel(
+                        mode: mode,
+                        running: running,
+                        preset: _preset,
+                        countSeconds: _countSeconds,
+                        remainingSeconds: _remainingSeconds,
+                        tapCount: _tapCount,
+                        liveBreathCount: _liveBreathCount,
+                        patternPick: _patternPick,
+                        breathScale: _breathScale,
+                        onPresetChanged: running ? null : (v) => setState(() => _preset = v ?? _preset),
+                        onCountSecondsChanged: running ? null : (v) => setState(() => _countSeconds = v),
+                        onPatternChanged: (v) => setState(() => _patternPick = v),
+                        onStart: _startPractice,
+                        onTapBreath: _registerTap,
+                      ),
+                    if (_feedback != null && _feedbackKind != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      EMSResultBox(title: 'Feedback', message: _feedback!, kind: _feedbackKind!),
+                    ],
+                    const SizedBox(height: AppSpacing.md),
+                    Text('Educational use only • Not medical advice', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RespirationStepHeader extends StatelessWidget {
+  const _RespirationStepHeader({required this.current, required this.running, required this.onSelect});
+
+  final int current;
+  final bool running;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final steps = const [
+      (Icons.visibility_rounded, 'What to watch'),
+      (Icons.play_circle_fill_rounded, '30-sec demo'),
+      (Icons.timer_rounded, 'Practice'),
+    ];
+
+    return EMSSectionCard(
+      title: 'Respirations walkthrough',
+      subtitle: 'Step ${current + 1} of 3 • Same short-screen style as BP and Pulse.',
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (int i = 0; i < steps.length; i++)
+            ChoiceChip(
+              selected: current == i,
+              onSelected: running ? null : (_) => onSelect(i),
+              avatar: Icon(steps[i].$1, size: 18, color: current == i ? cs.onPrimary : cs.primary),
+              label: Text(steps[i].$2),
+              labelStyle: TextStyle(color: current == i ? cs.onPrimary : cs.onSurface, fontWeight: FontWeight.w800),
+              selectedColor: cs.primary,
+              showCheckmark: false,
+              side: BorderSide(color: cs.outline.withValues(alpha: 0.18)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RespirationPhotoPanel extends StatelessWidget {
+  const _RespirationPhotoPanel({required this.onNext});
+
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return EMSSectionCard(
+      title: 'Visual cue: count without telling the patient',
+      subtitle: 'Watch chest or abdomen rise and fall. One full rise and fall = one breath.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: AspectRatio(
+              aspectRatio: 4 / 5,
+              child: Image.asset(
+                'assets/images/respirations_tutorial.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _MiniCue(icon: Icons.visibility_rounded, label: 'Watch', value: 'Chest / abdomen'),
+              const SizedBox(width: 10),
+              _MiniCue(icon: Icons.timer_rounded, label: 'Count', value: '30 seconds'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text('Document more than the number: rate, regularity, depth, effort, ability to speak, skin color, SpO₂, and response to treatment.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: onNext,
+              style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+              icon: const Icon(Icons.chevron_right, color: Colors.white),
+              label: const Text('Next: 30-second demo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RespirationGuidedPanel extends StatelessWidget {
+  const _RespirationGuidedPanel({required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.breathScale, required this.onStart, required this.onStop, required this.onNextPractice});
+
+  final bool running;
+  final int remainingSeconds;
+  final int liveBreathCount;
+  final Animation<double> breathScale;
+  final VoidCallback onStart;
+  final VoidCallback onStop;
+  final VoidCallback onNextPractice;
+
+  @override
+  Widget build(BuildContext context) {
+    return EMSSectionCard(
+      title: 'Guided demo: 30-second respiratory count',
+      subtitle: 'The app shows the breathing cue and keeps a live count. Beep + phone vibration mark each breath for training.',
+      child: Column(
+        children: [
+          _BreathingDisplay(
+            breathScale: breathScale,
+            running: running,
+            remainingSeconds: remainingSeconds,
+            liveBreathCount: liveBreathCount,
+            title: running ? 'Watch the rise and fall' : 'Tap Start Demo',
+            subtitle: running ? 'Live count: $liveBreathCount breaths' : 'Normal adult demo: 16/min',
+          ),
+          const SizedBox(height: 14),
+          if (running)
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: OutlinedButton.icon(
+                onPressed: onStop,
+                style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+                icon: const Icon(Icons.stop_circle_outlined),
+                label: const Text('Stop Demo'),
+              ),
+            )
+          else ...[
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: FilledButton.icon(
+                onPressed: onStart,
+                style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+                icon: const Icon(Icons.play_arrow, color: Colors.white),
+                label: const Text('Start 30-second demo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                onPressed: onNextPractice,
+                style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+                icon: const Icon(Icons.timer_rounded),
+                label: const Text('Go to practice'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RespirationPracticePanel extends StatelessWidget {
+  const _RespirationPracticePanel({required this.mode, required this.running, required this.preset, required this.countSeconds, required this.remainingSeconds, required this.tapCount, required this.liveBreathCount, required this.patternPick, required this.breathScale, required this.onPresetChanged, required this.onCountSecondsChanged, required this.onPatternChanged, required this.onStart, required this.onTapBreath});
+
+  final TrainingMode mode;
+  final bool running;
+  final RespirationRangePreset preset;
+  final int countSeconds;
+  final int remainingSeconds;
+  final int tapCount;
+  final int liveBreathCount;
+  final RespirationPattern? patternPick;
+  final Animation<double> breathScale;
+  final ValueChanged<RespirationRangePreset?>? onPresetChanged;
+  final ValueChanged<int> onCountSecondsChanged;
+  final ValueChanged<RespirationPattern?> onPatternChanged;
+  final VoidCallback onStart;
+  final VoidCallback onTapBreath;
+
+  @override
+  Widget build(BuildContext context) {
+    return EMSSectionCard(
+      title: 'Practice: count and document respirations',
+      subtitle: mode == TrainingMode.test ? 'Test mode: tap each breath, choose the pattern, then get a score.' : 'Tap Count Breath each time you see one full rise and fall.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<RespirationRangePreset>(
+            value: preset,
+            decoration: InputDecoration(
+              labelText: 'Respiration pattern preset',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            items: [for (final p in RespirationRangePreset.values) DropdownMenuItem(value: p, child: Text(p.label))],
+            onChanged: onPresetChanged,
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<int>(
+            segments: const [
+              ButtonSegment(value: 15, label: Text('15 sec'), icon: Icon(Icons.timer_rounded)),
+              ButtonSegment(value: 30, label: Text('30 sec'), icon: Icon(Icons.timer_rounded)),
+            ],
+            selected: {countSeconds},
+            onSelectionChanged: running ? null : (v) => onCountSecondsChanged(v.first),
+          ),
+          const SizedBox(height: 12),
+          _BreathingDisplay(
+            breathScale: breathScale,
+            running: running,
+            remainingSeconds: remainingSeconds,
+            liveBreathCount: liveBreathCount,
+            title: running ? 'Count every full breath' : 'Ready for practice',
+            subtitle: running ? 'Your taps: $tapCount' : 'Press start, then tap each breath',
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 58,
+            child: FilledButton.icon(
+              onPressed: running ? onTapBreath : onStart,
+              style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)))),
+              icon: Icon(running ? Icons.add_circle_rounded : Icons.play_arrow_rounded, color: Colors.white),
+              label: Text(running ? 'Count Breath  •  $tapCount' : 'Start Practice', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text('Document breathing quality:', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final p in RespirationPattern.values)
+                ChoiceChip(
+                  selected: patternPick == p,
+                  onSelected: (_) => onPatternChanged(p),
+                  label: Text(p.label),
+                  showCheckmark: false,
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          EMSResultBox(
+            title: 'Charting reminder',
+            message: 'Document RR plus quality: unlabored, shallow, labored, irregular, ability to speak, skin color, SpO₂, and response after treatment.',
+            kind: EMSResultKind.info,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BreathingDisplay extends StatelessWidget {
+  const _BreathingDisplay({required this.breathScale, required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.title, required this.subtitle});
+
+  final Animation<double> breathScale;
+  final bool running;
+  final int remainingSeconds;
+  final int liveBreathCount;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: AppColors.headerGradient.map((c) => c.withValues(alpha: 0.12)).toList()),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _MetricPill(icon: Icons.timer_rounded, label: 'Timer', value: running ? '${remainingSeconds}s' : '30s'),
+              const SizedBox(width: 10),
+              _MetricPill(icon: Icons.air_rounded, label: 'Live count', value: '$liveBreathCount'),
+            ],
+          ),
+          const SizedBox(height: 16),
+          AnimatedBuilder(
+            animation: breathScale,
+            builder: (context, _) {
+              return Transform.scale(
+                scale: breathScale.value,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 168,
+                      height: 168,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(38),
+                        border: Border.all(color: cs.outline.withValues(alpha: 0.16)),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 22, offset: const Offset(0, 10))],
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.air_rounded, size: 44, color: cs.primary),
+                        const SizedBox(height: 8),
+                        Text('RISE', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                        Text('& FALL', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w800, color: cs.onSurfaceVariant)),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Text(title, textAlign: TextAlign.center, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          Text(subtitle, textAlign: TextAlign.center, style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricPill extends StatelessWidget {
+  const _MetricPill({required this.icon, required this.label, required this.value});
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: cs.surface.withValues(alpha: 0.82),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: cs.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: context.textStyles.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w700)),
+                  Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniCue extends StatelessWidget {
+  const _MiniCue({required this.icon, required this.label, required this.value});
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.48),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: cs.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: context.textStyles.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w800)),
+                  Text(value, maxLines: 2, overflow: TextOverflow.ellipsis, style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
