@@ -5,6 +5,7 @@ import 'package:emscode_sim_vitals/learn_vitals/learn_vitals_models.dart';
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
 import 'package:emscode_sim_vitals/shared/normal_not_normal.dart';
+import 'package:emscode_sim_vitals/shared/visual_training_widgets.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -65,7 +66,7 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
 
     return EMSVitalsScaffold(
       title: lesson.vital.title,
-      subtitle: 'Learn the vital first, then practice deciding normal or not normal and why it matters.',
+      subtitle: 'Visual demo first, then normal/not-normal practice.',
       onInfoPressed: () {
         EMSInfoSheet.show(
           context,
@@ -86,29 +87,22 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: Column(
                   children: [
-                    EMSSectionCard(title: 'Learn: What it means', subtitle: 'Understand the finding before you practice it.', child: Text(lesson.whatItMeans, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
+                    _VitalVisualSnapshot(lesson: lesson),
                     const SizedBox(height: 12),
                     _NormalNotNormalForVital(vital: lesson.vital),
                     const SizedBox(height: 12),
-                    EMSSectionCard(title: 'Normal adult range', child: Text(lesson.normalRange, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
-                    const SizedBox(height: 12),
                     EMSSectionCard(
-                      title: 'Abnormal may suggest',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (final p in lesson.abnormalMaySuggest)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.check_circle, size: 18, color: AppColors.emsBlue), const SizedBox(width: 10), Expanded(child: Text(p, style: context.textStyles.bodyMedium?.copyWith(height: 1.45)))]),
-                            ),
+                      title: 'Instructor notes',
+                      subtitle: 'Collapsed into short visual cards instead of long paragraphs.',
+                      child: EMSInsightGrid(
+                        items: [
+                          EMSInsightItem(icon: Icons.lightbulb_rounded, label: 'Meaning', value: lesson.whatItMeans, accent: AppColors.emsBlue),
+                          EMSInsightItem(icon: Icons.warning_amber_rounded, label: 'Watch for', value: lesson.abnormalMaySuggest.first, accent: Colors.orange),
+                          EMSInsightItem(icon: Icons.edit_note_rounded, label: 'Document', value: lesson.whatToDocument, accent: const Color(0xFF22C55E)),
+                          EMSInsightItem(icon: Icons.school_rounded, label: 'Mistake', value: lesson.commonStudentMistake, accent: AppColors.danger),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    EMSSectionCard(title: 'What to document', child: Text(lesson.whatToDocument, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
-                    const SizedBox(height: 12),
-                    EMSSectionCard(title: 'Common student mistake', child: Text(lesson.commonStudentMistake, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
                     const SizedBox(height: 12),
                     _QuickQuizCard(
                       prompt: lesson.quickQuizPrompt,
@@ -240,6 +234,70 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
   }
 }
 
+
+
+class _VitalVisualSnapshot extends StatelessWidget {
+  const _VitalVisualSnapshot({required this.lesson});
+
+  final VitalLesson lesson;
+
+  @override
+  Widget build(BuildContext context) {
+    return EMSVisualHero(
+      title: lesson.vital.title,
+      subtitle: lesson.normalRange,
+      icon: lesson.vital.icon,
+      accent: _accentFor(lesson.vital),
+      imageAsset: _imageFor(lesson.vital),
+      steps: _stepsFor(lesson.vital),
+      actionLabel: _actionFor(lesson.vital),
+      onAction: _routeFor(lesson.vital) == null ? null : () => context.push(_routeFor(lesson.vital)!),
+    );
+  }
+
+  Color _accentFor(VitalId vital) => switch (vital) {
+    VitalId.bloodPressure => AppColors.emsBlue,
+    VitalId.pulseRate => AppColors.danger,
+    VitalId.respiratoryRate => const Color(0xFF0EA5E9),
+    VitalId.pupils => const Color(0xFF7C3AED),
+    VitalId.skinSigns => const Color(0xFFF97316),
+    VitalId.spo2 => const Color(0xFF06B6D4),
+    VitalId.avpu => const Color(0xFF22C55E),
+    VitalId.aao => const Color(0xFF14B8A6),
+  };
+
+  String? _imageFor(VitalId vital) => switch (vital) {
+    VitalId.bloodPressure => 'assets/images/bp_cuff_stethoscope_placement.png',
+    VitalId.pulseRate => 'assets/images/pulse_points_diagram.png',
+    VitalId.respiratoryRate => 'assets/images/respirations_tutorial.png',
+    _ => null,
+  };
+
+  List<String> _stepsFor(VitalId vital) => switch (vital) {
+    VitalId.bloodPressure => const ['Place cuff', 'Listen', 'Record BP'],
+    VitalId.pulseRate => const ['Find pulse', 'Count 30 sec', 'Rate x2'],
+    VitalId.respiratoryRate => const ['Watch chest', 'Count quietly', 'Rate/min'],
+    VitalId.pupils => const ['Size', 'Equal?', 'Reactive?'],
+    VitalId.skinSigns => const ['Color', 'Temp', 'Moisture'],
+    VitalId.spo2 => const ['Probe', 'Waveform', 'Treat patient'],
+    VitalId.avpu => const ['Alert', 'Voice', 'Pain'],
+    VitalId.aao => const ['Person', 'Place', 'Time/Event'],
+  };
+
+  String? _actionFor(VitalId vital) => switch (vital) {
+    VitalId.bloodPressure => 'Open BP simulator',
+    VitalId.pulseRate => 'Open pulse drill',
+    VitalId.pupils => 'Open pupil demo',
+    _ => null,
+  };
+
+  String? _routeFor(VitalId vital) => switch (vital) {
+    VitalId.bloodPressure => AppRoutes.bloodPressure,
+    VitalId.pulseRate => AppRoutes.pulseTest,
+    VitalId.pupils => AppRoutes.pupilAssessment,
+    _ => null,
+  };
+}
 
 class _NormalNotNormalForVital extends StatelessWidget {
   const _NormalNotNormalForVital({required this.vital});

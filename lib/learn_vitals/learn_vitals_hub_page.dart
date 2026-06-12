@@ -1,6 +1,7 @@
 import 'package:emscode_sim_vitals/learn_vitals/learn_vitals_models.dart';
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
+import 'package:emscode_sim_vitals/shared/visual_training_widgets.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -12,7 +13,7 @@ class LearnVitalsHubPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return EMSVitalsScaffold(
       title: 'Learn Vitals',
-      subtitle: 'Pick a vital to practice.',
+      subtitle: 'Pick a visual demo, then practice the skill.',
       bodySlivers: [
         SliverToBoxAdapter(
           child: Padding(
@@ -23,60 +24,73 @@ class LearnVitalsHubPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    EMSSectionCard(
-                      title: 'Vitals',
-                      subtitle: 'Choose one to practice right now.',
-                      child: Column(
-                        children: [
-                          _PracticeLinkTile(
-                            title: 'Blood Pressure',
-                            subtitle: 'Pump, release, listen, and estimate systolic/diastolic.',
-                            icon: Icons.speed,
-                            onTap: () => context.push(AppRoutes.bloodPressure),
-                          ),
-                          const SizedBox(height: 10),
-                          _PracticeLinkTile(
-                            title: 'Pulse',
-                            subtitle: 'Estimate rate and connect pulse quality to perfusion.',
-                            icon: Icons.favorite,
-                            onTap: () => context.push(AppRoutes.pulseTest),
-                          ),
-                          const SizedBox(height: 10),
-                          _PracticeLinkTile(
-                            title: 'Pupils',
-                            subtitle: 'Document size, equality, reactivity, and patient-left/right.',
-                            icon: Icons.remove_red_eye,
-                            onTap: () => context.push(AppRoutes.pupilAssessment),
-                          ),
-                          const SizedBox(height: 10),
-                          _PracticeLinkTile(
-                            title: 'Breath Sounds',
-                            subtitle: 'Listen and identify breath sounds by lung field.',
-                            icon: Icons.spatial_audio_off,
-                            onTap: () => context.push(AppRoutes.breathSound),
-                          ),
-                        ],
-                      ),
+                    EMSVisualHero(
+                      title: 'Vitals Lab',
+                      subtitle: 'Start with a picture or animated drill, then answer normal/not normal.',
+                      icon: Icons.monitor_heart_rounded,
+                      accent: AppColors.emsBlue,
+                      imageAsset: 'assets/images/bp_cuff_stethoscope_placement.png',
+                      steps: const ['Position', 'Measure', 'Document'],
+                      actionLabel: 'Open BP demo',
+                      onAction: () => context.push(AppRoutes.bloodPressure),
                     ),
                     const SizedBox(height: 12),
-                    EMSSectionCard(
-                      title: 'Optional',
-                      subtitle: 'If you want to run a full set like a real call.',
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: FilledButton.icon(
-                          onPressed: () => context.push(AppRoutes.fullVitalsSet),
-                          style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
-                          icon: const Icon(Icons.assignment_turned_in, color: Colors.white),
-                          label: const Text('Full Vitals Set Practice', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                    EMSStoryboard(
+                      title: 'Video-style practice loop',
+                      items: const [
+                        EMSStoryboardItem(icon: Icons.image_rounded, label: 'Photo cue', caption: 'Show placement or patient finding'),
+                        EMSStoryboardItem(icon: Icons.play_arrow_rounded, label: 'Demo', caption: 'Animated countdown or sound'),
+                        EMSStoryboardItem(icon: Icons.edit_note_rounded, label: 'Chart', caption: 'Rate, quality, normal?'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _VisualPracticeGrid(
+                      children: [
+                        _PracticeLinkTile(
+                          title: 'Blood Pressure',
+                          subtitle: 'Cuff + stethoscope visual demo.',
+                          icon: Icons.speed,
+                          imageAsset: 'assets/images/bp_cuff_stethoscope_placement.png',
+                          onTap: () => context.push(AppRoutes.bloodPressure),
                         ),
-                      ),
+                        _PracticeLinkTile(
+                          title: 'Pulse',
+                          subtitle: 'Pulse points + rate drill.',
+                          icon: Icons.favorite,
+                          imageAsset: 'assets/images/pulse_points_diagram.png',
+                          onTap: () => context.push(AppRoutes.pulseTest),
+                        ),
+                        _PracticeLinkTile(
+                          title: 'Respirations',
+                          subtitle: 'Watch chest rise countdown.',
+                          icon: Icons.air,
+                          imageAsset: 'assets/images/respirations_tutorial.png',
+                          onTap: () => context.push('${AppRoutes.learnVitals}/${VitalId.respiratoryRate.id}'),
+                        ),
+                        _PracticeLinkTile(
+                          title: 'Pupils',
+                          subtitle: 'Patient-left/right visual check.',
+                          icon: Icons.remove_red_eye,
+                          onTap: () => context.push(AppRoutes.pupilAssessment),
+                        ),
+                        _PracticeLinkTile(
+                          title: 'Breath Sounds',
+                          subtitle: 'Tap lung fields and identify sounds.',
+                          icon: Icons.spatial_audio_off,
+                          onTap: () => context.push(AppRoutes.breathSound),
+                        ),
+                        _PracticeLinkTile(
+                          title: 'Full Set',
+                          subtitle: 'Run BP, pulse, RR, skin, pupils.',
+                          icon: Icons.assignment_turned_in,
+                          onTap: () => context.push(AppRoutes.fullVitalsSet),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     EMSSectionCard(
-                      title: 'Learn (reference)',
-                      subtitle: 'Normal ranges and documentation notes.',
+                      title: 'Quick reference',
+                      subtitle: 'Short range cards only — tap for the full practice screen.',
                       child: Column(
                         children: [
                           for (final v in VitalId.values) ...[
@@ -142,38 +156,109 @@ class _VitalTile extends StatelessWidget {
   }
 }
 
+
+class _VisualPracticeGrid extends StatelessWidget {
+  const _VisualPracticeGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoCols = constraints.maxWidth >= 620;
+        final tileWidth = twoCols ? (constraints.maxWidth - 12) / 2 : constraints.maxWidth;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final child in children) SizedBox(width: tileWidth, child: child),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _PracticeLinkTile extends StatelessWidget {
-  const _PracticeLinkTile({required this.title, required this.subtitle, required this.icon, required this.onTap});
+  const _PracticeLinkTile({required this.title, required this.subtitle, required this.icon, required this.onTap, this.imageAsset});
   final String title;
   final String subtitle;
   final IconData icon;
   final VoidCallback onTap;
+  final String? imageAsset;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      splashFactory: NoSplash.splashFactory,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: cs.outline.withValues(alpha: 0.16)), color: cs.surfaceContainerHighest.withValues(alpha: 0.24)),
-        child: Row(
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        splashFactory: NoSplash.splashFactory,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppColors.emsBlue),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            SizedBox(
+              height: 104,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(title, style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.3)),
+                  if (imageAsset != null)
+                    Image.asset(
+                      imageAsset!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(color: AppColors.emsBlue.withValues(alpha: 0.10)),
+                    )
+                  else
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.emsBlue.withValues(alpha: 0.16), AppColors.emsCyan.withValues(alpha: 0.12)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    ),
+                  Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.transparent, Colors.black.withValues(alpha: 0.38)], begin: Alignment.topCenter, end: Alignment.bottomCenter)))),
+                  Positioned(
+                    left: 12,
+                    bottom: 10,
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                      child: Icon(icon, color: AppColors.emsBlue),
+                    ),
+                  ),
+                  const Positioned(
+                    right: 12,
+                    bottom: 14,
+                    child: Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 30),
+                  ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.3)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
+                ],
+              ),
+            ),
           ],
         ),
       ),
