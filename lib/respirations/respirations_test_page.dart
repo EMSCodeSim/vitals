@@ -56,6 +56,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
   final PulseBeepPlayer _cue = PulseBeepPlayer();
 
   RespirationRangePreset _preset = RespirationRangePreset.normalAdult;
+  RespirationRangePreset _guidedPreset = RespirationRangePreset.normalAdult;
   int _countSeconds = 30;
   int _walkthroughScreen = 0;
 
@@ -125,6 +126,14 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
 
   int _randIn(int min, int maxVal) => min + _rng.nextInt(max(1, maxVal - min + 1));
 
+  int _guidedDemoRate(RespirationRangePreset preset) => switch (preset) {
+    RespirationRangePreset.slow => 8,
+    RespirationRangePreset.normalAdult => 16,
+    RespirationRangePreset.fast => 24,
+    RespirationRangePreset.distress => 32,
+    RespirationRangePreset.irregular => 18,
+  };
+
   RespirationPattern _randomPatternForPreset(RespirationRangePreset p) {
     if (p == RespirationRangePreset.irregular) return RespirationPattern.irregular;
     if (p == RespirationRangePreset.distress) return _rng.nextBool() ? RespirationPattern.labored : RespirationPattern.shallow;
@@ -150,8 +159,12 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
     await _unlockAudio();
     _stopAll();
 
-    const rr = 16;
-    const pattern = RespirationPattern.regular;
+    final rr = _guidedDemoRate(_guidedPreset);
+    final pattern = _guidedPreset == RespirationRangePreset.irregular
+        ? RespirationPattern.irregular
+        : (_guidedPreset == RespirationRangePreset.distress
+            ? RespirationPattern.labored
+            : RespirationPattern.regular);
 
     setState(() {
       _actualRr = rr;
@@ -365,6 +378,9 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
                         remainingSeconds: _remainingSeconds,
                         liveBreathCount: _liveBreathCount,
                         breathScale: _breathScale,
+                        breathProgress: _breathController,
+                        guidedPreset: _guidedPreset,
+                        onGuidedPresetChanged: running ? null : (v) => setState(() => _guidedPreset = v ?? _guidedPreset),
                         onStart: _startGuidedRespirations,
                         onStop: _stopAndRefresh,
                         onNextPractice: () => _goToWalkthroughScreen(2),
@@ -380,6 +396,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
                         liveBreathCount: _liveBreathCount,
                         patternPick: _patternPick,
                         breathScale: _breathScale,
+                        breathProgress: _breathController,
                         onPresetChanged: running ? null : (v) => setState(() => _preset = v ?? _preset),
                         onCountSecondsChanged: running ? null : (v) => setState(() => _countSeconds = v),
                         onPatternChanged: (v) => setState(() => _patternPick = v),
@@ -496,12 +513,15 @@ class _RespirationPhotoPanel extends StatelessWidget {
 }
 
 class _RespirationGuidedPanel extends StatelessWidget {
-  const _RespirationGuidedPanel({required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.breathScale, required this.onStart, required this.onStop, required this.onNextPractice});
+  const _RespirationGuidedPanel({required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.breathScale, required this.breathProgress, required this.guidedPreset, required this.onGuidedPresetChanged, required this.onStart, required this.onStop, required this.onNextPractice});
 
   final bool running;
   final int remainingSeconds;
   final int liveBreathCount;
   final Animation<double> breathScale;
+  final Animation<double> breathProgress;
+  final RespirationRangePreset guidedPreset;
+  final ValueChanged<RespirationRangePreset?>? onGuidedPresetChanged;
   final VoidCallback onStart;
   final VoidCallback onStop;
   final VoidCallback onNextPractice;
@@ -513,13 +533,24 @@ class _RespirationGuidedPanel extends StatelessWidget {
       subtitle: 'The app shows the breathing cue and keeps a live count. Beep + phone vibration mark each breath for training.',
       child: Column(
         children: [
+          DropdownButtonFormField<RespirationRangePreset>(
+            value: guidedPreset,
+            decoration: InputDecoration(
+              labelText: 'Demo speed / respiratory rate',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            items: [for (final p in RespirationRangePreset.values) DropdownMenuItem(value: p, child: Text('${p.label} • ${switch (p) { RespirationRangePreset.slow => '8/min', RespirationRangePreset.normalAdult => '16/min', RespirationRangePreset.fast => '24/min', RespirationRangePreset.distress => '32/min', RespirationRangePreset.irregular => 'Irregular' }}'))],
+            onChanged: onGuidedPresetChanged,
+          ),
+          const SizedBox(height: 12),
           _BreathingDisplay(
             breathScale: breathScale,
+            breathProgress: breathProgress,
             running: running,
             remainingSeconds: remainingSeconds,
             liveBreathCount: liveBreathCount,
-            title: running ? 'Watch the rise and fall' : 'Tap Start Demo',
-            subtitle: running ? 'Live count: $liveBreathCount breaths' : 'Normal adult demo: 16/min',
+            title: running ? 'Watch the chest rise and fall' : 'Tap Start Demo',
+            subtitle: running ? 'Live count: $liveBreathCount breaths' : 'Animated chest demo at ${switch (guidedPreset) { RespirationRangePreset.slow => '8', RespirationRangePreset.normalAdult => '16', RespirationRangePreset.fast => '24', RespirationRangePreset.distress => '32', RespirationRangePreset.irregular => 'variable' }}/min',
           ),
           const SizedBox(height: 14),
           if (running)
@@ -563,7 +594,7 @@ class _RespirationGuidedPanel extends StatelessWidget {
 }
 
 class _RespirationPracticePanel extends StatelessWidget {
-  const _RespirationPracticePanel({required this.mode, required this.running, required this.preset, required this.countSeconds, required this.remainingSeconds, required this.tapCount, required this.liveBreathCount, required this.patternPick, required this.breathScale, required this.onPresetChanged, required this.onCountSecondsChanged, required this.onPatternChanged, required this.onStart, required this.onTapBreath});
+  const _RespirationPracticePanel({required this.mode, required this.running, required this.preset, required this.countSeconds, required this.remainingSeconds, required this.tapCount, required this.liveBreathCount, required this.patternPick, required this.breathScale, required this.breathProgress, required this.onPresetChanged, required this.onCountSecondsChanged, required this.onPatternChanged, required this.onStart, required this.onTapBreath});
 
   final TrainingMode mode;
   final bool running;
@@ -574,8 +605,9 @@ class _RespirationPracticePanel extends StatelessWidget {
   final int liveBreathCount;
   final RespirationPattern? patternPick;
   final Animation<double> breathScale;
+  final Animation<double> breathProgress;
   final ValueChanged<RespirationRangePreset?>? onPresetChanged;
-  final ValueChanged<int> onCountSecondsChanged;
+  final ValueChanged<int>? onCountSecondsChanged;
   final ValueChanged<RespirationPattern?> onPatternChanged;
   final VoidCallback onStart;
   final VoidCallback onTapBreath;
@@ -604,11 +636,12 @@ class _RespirationPracticePanel extends StatelessWidget {
               ButtonSegment(value: 30, label: Text('30 sec'), icon: Icon(Icons.timer_rounded)),
             ],
             selected: {countSeconds},
-            onSelectionChanged: running ? null : (v) => onCountSecondsChanged(v.first),
+            onSelectionChanged: onCountSecondsChanged == null ? null : (v) => onCountSecondsChanged!(v.first),
           ),
           const SizedBox(height: 12),
           _BreathingDisplay(
             breathScale: breathScale,
+            breathProgress: breathProgress,
             running: running,
             remainingSeconds: remainingSeconds,
             liveBreathCount: liveBreathCount,
@@ -655,9 +688,10 @@ class _RespirationPracticePanel extends StatelessWidget {
 }
 
 class _BreathingDisplay extends StatelessWidget {
-  const _BreathingDisplay({required this.breathScale, required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.title, required this.subtitle});
+  const _BreathingDisplay({required this.breathScale, required this.breathProgress, required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.title, required this.subtitle});
 
   final Animation<double> breathScale;
+  final Animation<double> breathProgress;
   final bool running;
   final int remainingSeconds;
   final int liveBreathCount;
@@ -686,33 +720,59 @@ class _BreathingDisplay extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           AnimatedBuilder(
-            animation: breathScale,
+            animation: Listenable.merge([breathScale, breathProgress]),
             builder: (context, _) {
+              final t = running ? breathProgress.value : 0.25;
+              String asset;
+              if (t < 0.20) {
+                asset = 'assets/images/resp_chest_frame_1.png';
+              } else if (t < 0.45) {
+                asset = 'assets/images/resp_chest_frame_2.png';
+              } else if (t < 0.70) {
+                asset = 'assets/images/resp_chest_frame_3.png';
+              } else if (t < 0.88) {
+                asset = 'assets/images/resp_chest_frame_2.png';
+              } else {
+                asset = 'assets/images/resp_chest_frame_1.png';
+              }
               return Transform.scale(
-                scale: breathScale.value,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 168,
-                      height: 168,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        borderRadius: BorderRadius.circular(38),
-                        border: Border.all(color: cs.outline.withValues(alpha: 0.16)),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 22, offset: const Offset(0, 10))],
-                      ),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
+                scale: running ? breathScale.value : 1.0,
+                child: Container(
+                  width: 250,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.84),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: cs.outline.withValues(alpha: 0.16)),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 22, offset: const Offset(0, 10))],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Stack(
                       children: [
-                        Icon(Icons.air_rounded, size: 44, color: cs.primary),
-                        const SizedBox(height: 8),
-                        Text('RISE', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-                        Text('& FALL', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w800, color: cs.onSurfaceVariant)),
+                        AspectRatio(
+                          aspectRatio: 4 / 5,
+                          child: Image.asset(asset, fit: BoxFit.cover),
+                        ),
+                        Positioned(
+                          left: 12,
+                          right: 12,
+                          bottom: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.52),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Text(
+                              running ? (t < 0.5 ? 'Inhale' : 'Exhale') : 'Animated chest demo',
+                              textAlign: TextAlign.center,
+                              style: context.textStyles.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               );
             },
