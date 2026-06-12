@@ -204,17 +204,19 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
           ),
         ),
       ),
-      VitalId.respiratoryRate => _RespRatePracticeCard(
-        hiddenRr: _hiddenRr ?? 16,
-        guess: _rrGuess,
-        showHint: mode == TrainingMode.learn,
-        showReveal: instructor,
-        onGuessChanged: (v) => setState(() => _rrGuess = v),
-        onCheck: () {
-          final hidden = _hiddenRr ?? 16;
-          setState(() => _rrCorrect = (hidden - _rrGuess).abs() <= 2);
-        },
-        result: _rrCorrect,
+      VitalId.respiratoryRate => EMSSectionCard(
+        title: 'Practice mode',
+        subtitle: 'Open the respirations walkthrough with visual cue, 30-second demo, live count, and tap-to-count practice.',
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: FilledButton.icon(
+            onPressed: () => context.push(AppRoutes.respirationsTest),
+            style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+            icon: const Icon(Icons.play_arrow, color: Colors.white),
+            label: const Text('Open Respirations Walkthrough', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+          ),
+        ),
       ),
       VitalId.spo2 => _SpO2PracticeCard(mode: mode, reveal: instructor),
       VitalId.skinSigns => _SkinSignsPracticeCard(mode: mode, reveal: instructor),
@@ -287,6 +289,7 @@ class _VitalVisualSnapshot extends StatelessWidget {
   String? _actionFor(VitalId vital) => switch (vital) {
     VitalId.bloodPressure => 'Open BP simulator',
     VitalId.pulseRate => 'Open pulse drill',
+    VitalId.respiratoryRate => 'Open respiration drill',
     VitalId.pupils => 'Open pupil demo',
     _ => null,
   };
@@ -294,6 +297,7 @@ class _VitalVisualSnapshot extends StatelessWidget {
   String? _routeFor(VitalId vital) => switch (vital) {
     VitalId.bloodPressure => AppRoutes.bloodPressure,
     VitalId.pulseRate => AppRoutes.pulseTest,
+    VitalId.respiratoryRate => AppRoutes.respirationsTest,
     VitalId.pupils => AppRoutes.pupilAssessment,
     _ => null,
   };

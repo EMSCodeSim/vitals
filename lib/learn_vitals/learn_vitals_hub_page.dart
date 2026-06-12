@@ -65,7 +65,7 @@ class LearnVitalsHubPage extends StatelessWidget {
                           subtitle: 'Watch chest rise countdown.',
                           icon: Icons.air,
                           imageAsset: 'assets/images/respirations_tutorial.png',
-                          onTap: () => context.push('${AppRoutes.learnVitals}/${VitalId.respiratoryRate.id}'),
+                          onTap: () => context.push(AppRoutes.respirationsTest),
                         ),
                         _PracticeLinkTile(
                           title: 'Pupils',
@@ -123,7 +123,7 @@ class _VitalTile extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
-        onTap: () => context.push('${AppRoutes.learnVitals}/${vital.id}'),
+        onTap: () => vital == VitalId.respiratoryRate ? context.push(AppRoutes.respirationsTest) : context.push('${AppRoutes.learnVitals}/${vital.id}'),
         borderRadius: BorderRadius.circular(AppRadius.md),
         splashFactory: NoSplash.splashFactory,
         child: Padding(
