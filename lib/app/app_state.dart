@@ -13,12 +13,13 @@ extension TrainingModeLabels on TrainingMode {
   };
 }
 
-enum TrainingModule { bloodPressure, pulse, stroke, pupil, burn, breath, treatments, walkthrough }
+enum TrainingModule { bloodPressure, pulse, respirations, stroke, pupil, burn, breath, treatments, walkthrough }
 
 extension TrainingModuleLabels on TrainingModule {
   String get label => switch (this) {
     TrainingModule.bloodPressure => 'Blood Pressure',
     TrainingModule.pulse => 'Pulse Test',
+    TrainingModule.respirations => 'Respirations',
     TrainingModule.stroke => 'Stroke Assessment',
     TrainingModule.pupil => 'Pupil Assessment',
     TrainingModule.burn => 'Rule of Nines',
