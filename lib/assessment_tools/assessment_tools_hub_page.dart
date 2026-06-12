@@ -1,6 +1,7 @@
 import 'package:emscode_sim_vitals/assessment_tools/assessment_tools_models.dart';
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
+import 'package:emscode_sim_vitals/shared/visual_training_widgets.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -28,7 +29,7 @@ class AssessmentToolsHubPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return EMSVitalsScaffold(
       title: 'Assessment Tools',
-      subtitle: 'Run the EMT assessment flow and focused exams. Use scenarios when you want the full “from door to report” practice.',
+      subtitle: 'Graphic assessment flow with scene cards, prompts, and quick decision checks.',
       onInfoPressed: () {
         EMSInfoSheet.show(
           context,
@@ -50,21 +51,41 @@ class AssessmentToolsHubPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    EMSVisualHero(
+                      title: 'Assessment Walkthrough',
+                      subtitle: 'Looks more like a mini training video: scene cue → student decision → feedback.',
+                      icon: Icons.route_rounded,
+                      accent: const Color(0xFF22C55E),
+                      steps: const ['Scene', 'Decision', 'Feedback'],
+                      actionLabel: 'Start Walkthrough',
+                      onAction: () => context.push(AppRoutes.walkthrough),
+                    ),
+                    const SizedBox(height: 12),
+                    EMSStoryboard(
+                      title: 'Primary flow',
+                      items: const [
+                        EMSStoryboardItem(icon: Icons.visibility_rounded, label: 'General', caption: 'Sick or not sick?', accent: Color(0xFF22C55E)),
+                        EMSStoryboardItem(icon: Icons.air_rounded, label: 'ABC', caption: 'Airway, breathing, circulation', accent: AppColors.emsBlue),
+                        EMSStoryboardItem(icon: Icons.history_edu_rounded, label: 'History', caption: 'SAMPLE / OPQRST', accent: Color(0xFFF97316)),
+                        EMSStoryboardItem(icon: Icons.repeat_rounded, label: 'Reassess', caption: 'Trend the patient', accent: Color(0xFF7C3AED)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     EMSSectionCard(
-                      title: 'Scenarios',
-                      subtitle: 'Practice a complete patient assessment (sequence + documentation mindset).',
+                      title: 'Scenario buttons',
+                      subtitle: 'Start a visual case instead of reading a long lesson.',
                       child: Column(
                         children: [
                           _QuickActionTile(
                             title: 'Patient Assessment Walkthrough',
-                            subtitle: 'Step-by-step primary → history → exam → reassessment.',
+                            subtitle: 'One step on screen at a time.',
                             icon: Icons.route,
                             onTap: () => context.push(AppRoutes.walkthrough),
                           ),
                           const SizedBox(height: 10),
                           _QuickActionTile(
                             title: 'Patient Assessment Cases',
-                            subtitle: 'Choose a case and practice decision flow.',
+                            subtitle: 'Pick a patient and make decisions.',
                             icon: Icons.assignment,
                             onTap: () => context.push(AppRoutes.cases),
                           ),
@@ -74,7 +95,7 @@ class AssessmentToolsHubPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     EMSSectionCard(
                       title: 'Core Flow Tools',
-                      subtitle: 'The stuff you’ll use on almost every call.',
+                      subtitle: 'Short visual tool cards.',
                       child: Column(
                         children: [
                           for (final t in _coreTools) ...[

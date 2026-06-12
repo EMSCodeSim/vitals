@@ -4,6 +4,7 @@ import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/assessment_tools/assessment_tools_models.dart';
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
+import 'package:emscode_sim_vitals/shared/visual_training_widgets.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -59,7 +60,7 @@ class _ToolLessonPageState extends State<ToolLessonPage> {
 
     return EMSVitalsScaffold(
       title: lesson.tool.title,
-      subtitle: 'Learn what the tool is for, then practice deciding what is normal, not normal, and why it matters.',
+      subtitle: 'Visual tool card first, then quick normal/not-normal practice.',
       onInfoPressed: () {
         EMSInfoSheet.show(
           context,
@@ -80,34 +81,31 @@ class _ToolLessonPageState extends State<ToolLessonPage> {
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: Column(
                   children: [
-                    EMSSectionCard(title: 'Learn: Used for', subtitle: 'Assessment tools come after vital signs and help you decide what matters.', child: Text(lesson.usedFor, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
+                    EMSVisualHero(
+                      title: lesson.tool.title,
+                      subtitle: lesson.usedFor,
+                      icon: lesson.tool.icon,
+                      accent: _toolAccent(lesson.tool),
+                      steps: const ['Look', 'Ask', 'Decide'],
+                    ),
                     const SizedBox(height: 12),
-                    EMSSectionCard(title: 'When to use it', child: Text(lesson.whenToUse, style: context.textStyles.bodyMedium?.copyWith(height: 1.5))),
-                    const SizedBox(height: 12),
-                    EMSSectionCard(
-                      title: 'What to ask / check',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (final q in lesson.whatToAsk)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.arrow_right, color: Theme.of(context).colorScheme.onSurfaceVariant), const SizedBox(width: 8), Expanded(child: Text(q, style: context.textStyles.bodyMedium?.copyWith(height: 1.4)))]),
-                            ),
-                        ],
-                      ),
+                    EMSStoryboard(
+                      title: 'Tool flow',
+                      items: [
+                        EMSStoryboardItem(icon: Icons.visibility_rounded, label: 'Use for', caption: lesson.usedFor, accent: _toolAccent(lesson.tool)),
+                        EMSStoryboardItem(icon: Icons.question_answer_rounded, label: 'Ask/check', caption: lesson.whatToAsk.first, accent: AppColors.emsBlue),
+                        EMSStoryboardItem(icon: Icons.warning_rounded, label: 'Red flag', caption: lesson.abnormalMeans.first, accent: Colors.orange),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     EMSSectionCard(
-                      title: 'If not normal, why it matters',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (final p in lesson.abnormalMeans)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.check_circle, size: 18, color: AppColors.emsBlue), const SizedBox(width: 10), Expanded(child: Text(p, style: context.textStyles.bodyMedium?.copyWith(height: 1.45)))]),
-                            ),
+                      title: 'Quick guide',
+                      subtitle: 'Reduced text version of the lesson.',
+                      child: EMSInsightGrid(
+                        items: [
+                          EMSInsightItem(icon: Icons.schedule_rounded, label: 'When', value: lesson.whenToUse, accent: _toolAccent(lesson.tool)),
+                          EMSInsightItem(icon: Icons.checklist_rounded, label: 'Ask/check', value: lesson.whatToAsk.join(' • '), accent: AppColors.emsBlue),
+                          EMSInsightItem(icon: Icons.report_problem_rounded, label: 'Not normal', value: lesson.abnormalMeans.join(' • '), accent: Colors.orange),
                         ],
                       ),
                     ),
@@ -159,6 +157,20 @@ class _ToolLessonPageState extends State<ToolLessonPage> {
     ToolId.ruleOfNines => AppRoutes.ruleOfNines,
     ToolId.breathSounds => AppRoutes.breathSound,
     _ => null,
+  };
+
+  Color _toolAccent(ToolId tool) => switch (tool) {
+    ToolId.primaryAssessment => const Color(0xFF22C55E),
+    ToolId.generalImpression => const Color(0xFF14B8A6),
+    ToolId.sample => AppColors.emsBlue,
+    ToolId.opqrst => const Color(0xFFF97316),
+    ToolId.secondaryAssessment => const Color(0xFF7C3AED),
+    ToolId.dcapbtls => AppColors.danger,
+    ToolId.stroke => const Color(0xFFDC2626),
+    ToolId.ruleOfNines => const Color(0xFFF97316),
+    ToolId.painScale => const Color(0xFF7C3AED),
+    ToolId.breathSounds => const Color(0xFF0EA5E9),
+    _ => AppColors.emsBlue,
   };
 
   Widget _practiceFor(ToolId tool, TrainingMode mode, bool instructor) {
