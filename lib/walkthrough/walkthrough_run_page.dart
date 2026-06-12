@@ -1,5 +1,6 @@
 import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
+import 'package:emscode_sim_vitals/shared/visual_training_widgets.dart';
 import 'package:emscode_sim_vitals/theme.dart';
 import 'package:emscode_sim_vitals/walkthrough/walkthrough_models.dart';
 import 'package:flutter/material.dart';
@@ -46,6 +47,32 @@ class _WalkthroughRunPageState extends State<WalkthroughRunPage> {
     if (s == null) return null;
     return WalkthroughMode.values.cast<WalkthroughMode?>().firstWhere((m) => m?.name == s, orElse: () => null);
   }
+
+  IconData _iconForCategory(AssessmentCategory category) => switch (category) {
+    AssessmentCategory.sceneSizeUp => Icons.shield_rounded,
+    AssessmentCategory.generalImpression => Icons.visibility_rounded,
+    AssessmentCategory.mentalStatus => Icons.psychology_rounded,
+    AssessmentCategory.primaryAssessment => Icons.rule_rounded,
+    AssessmentCategory.vitalSigns => Icons.monitor_heart_rounded,
+    AssessmentCategory.history => Icons.history_edu_rounded,
+    AssessmentCategory.focusedAssessment => Icons.search_rounded,
+    AssessmentCategory.treatment => Icons.medical_services_rounded,
+    AssessmentCategory.reassessment => Icons.repeat_rounded,
+    AssessmentCategory.handoffReport => Icons.record_voice_over_rounded,
+  };
+
+  Color _accentForCategory(AssessmentCategory category) => switch (category) {
+    AssessmentCategory.sceneSizeUp => const Color(0xFF22C55E),
+    AssessmentCategory.generalImpression => const Color(0xFF14B8A6),
+    AssessmentCategory.mentalStatus => const Color(0xFF7C3AED),
+    AssessmentCategory.primaryAssessment => AppColors.emsBlue,
+    AssessmentCategory.vitalSigns => AppColors.danger,
+    AssessmentCategory.history => const Color(0xFFF97316),
+    AssessmentCategory.focusedAssessment => const Color(0xFF0EA5E9),
+    AssessmentCategory.treatment => const Color(0xFF16A34A),
+    AssessmentCategory.reassessment => const Color(0xFF0891B2),
+    AssessmentCategory.handoffReport => const Color(0xFF64748B),
+  };
 
   @override
   void dispose() {
@@ -119,6 +146,13 @@ class _WalkthroughRunPageState extends State<WalkthroughRunPage> {
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: Column(
                   children: [
+                    _AnimatedWalkthroughProgress(
+                      current: _index + 1,
+                      total: _case.steps.length,
+                      category: step.category.label,
+                      accent: _accentForCategory(step.category),
+                    ),
+                    const SizedBox(height: 12),
                     EMSSectionCard(
                       title: step.title,
                       subtitle: step.critical ? 'Critical step' : null,
@@ -130,7 +164,13 @@ class _WalkthroughRunPageState extends State<WalkthroughRunPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(step.prompt, style: context.textStyles.bodyMedium?.copyWith(fontWeight: FontWeight.w800, height: 1.4)),
+                          EMSVideoPromptCard(
+                            title: 'Scene prompt',
+                            prompt: step.prompt,
+                            icon: _iconForCategory(step.category),
+                            accent: _accentForCategory(step.category),
+                            caption: step.critical ? 'Critical decision' : 'Tap the best answer',
+                          ),
                           const SizedBox(height: 12),
                           if (_mode == WalkthroughMode.learn && step.learnHint != null)
                             EMSResultBox(title: 'Hint', message: step.learnHint!, kind: EMSResultKind.info),
@@ -341,6 +381,72 @@ class _WalkthroughRunPageState extends State<WalkthroughRunPage> {
       }
     }
     return WalkthroughScore(total: total, correct: correct, byCategoryCorrect: byCatCorrect, byCategoryTotal: byCatTotal, missedCriticalStepIds: missedCritical);
+  }
+}
+
+
+class _AnimatedWalkthroughProgress extends StatelessWidget {
+  const _AnimatedWalkthroughProgress({required this.current, required this.total, required this.category, required this.accent});
+
+  final int current;
+  final int total;
+  final String category;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final progress = total == 0 ? 0.0 : current / total;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+                child: Icon(Icons.movie_filter_rounded, color: accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Walkthrough clip $current of $total', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 2),
+                    Text(category, style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w800)),
+                  ],
+                ),
+              ),
+              Text('${(progress * 100).round()}%', style: context.textStyles.labelMedium?.copyWith(fontWeight: FontWeight.w900, color: accent)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0).toDouble()),
+              duration: const Duration(milliseconds: 420),
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value,
+                minHeight: 9,
+                backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.55),
+                color: accent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
