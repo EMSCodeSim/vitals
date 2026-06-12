@@ -527,7 +527,7 @@ class _InsightTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      minHeight: 104,
+      constraints: const BoxConstraints(minHeight: 104),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.28),
