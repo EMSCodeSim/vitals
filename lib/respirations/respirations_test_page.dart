@@ -78,12 +78,17 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
   DateTime? _startTime;
 
   late final AnimationController _breathController;
+  late final Animation<double> _breathScale;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _breathController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+    _breathScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.18).chain(CurveTween(curve: Curves.easeInOutCubic)), weight: 45),
+      TweenSequenceItem(tween: Tween(begin: 1.18, end: 1.0).chain(CurveTween(curve: Curves.easeInOutCubic)), weight: 55),
+    ]).animate(_breathController);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -372,6 +377,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
                         running: running,
                         remainingSeconds: _remainingSeconds,
                         liveBreathCount: _liveBreathCount,
+                        breathScale: _breathScale,
                         breathProgress: _breathController,
                         guidedPreset: _guidedPreset,
                         onGuidedPresetChanged: running ? null : (v) => setState(() => _guidedPreset = v ?? _guidedPreset),
@@ -389,6 +395,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
                         tapCount: _tapCount,
                         liveBreathCount: _liveBreathCount,
                         patternPick: _patternPick,
+                        breathScale: _breathScale,
                         breathProgress: _breathController,
                         onPresetChanged: running ? null : (v) => setState(() => _preset = v ?? _preset),
                         onCountSecondsChanged: running ? null : (v) => setState(() => _countSeconds = v),
@@ -506,11 +513,12 @@ class _RespirationPhotoPanel extends StatelessWidget {
 }
 
 class _RespirationGuidedPanel extends StatelessWidget {
-  const _RespirationGuidedPanel({required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.breathProgress, required this.guidedPreset, required this.onGuidedPresetChanged, required this.onStart, required this.onStop, required this.onNextPractice});
+  const _RespirationGuidedPanel({required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.breathScale, required this.breathProgress, required this.guidedPreset, required this.onGuidedPresetChanged, required this.onStart, required this.onStop, required this.onNextPractice});
 
   final bool running;
   final int remainingSeconds;
   final int liveBreathCount;
+  final Animation<double> breathScale;
   final Animation<double> breathProgress;
   final RespirationRangePreset guidedPreset;
   final ValueChanged<RespirationRangePreset?>? onGuidedPresetChanged;
@@ -536,6 +544,7 @@ class _RespirationGuidedPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _BreathingDisplay(
+            breathScale: breathScale,
             breathProgress: breathProgress,
             running: running,
             remainingSeconds: remainingSeconds,
@@ -585,7 +594,7 @@ class _RespirationGuidedPanel extends StatelessWidget {
 }
 
 class _RespirationPracticePanel extends StatelessWidget {
-  const _RespirationPracticePanel({required this.mode, required this.running, required this.preset, required this.countSeconds, required this.remainingSeconds, required this.tapCount, required this.liveBreathCount, required this.patternPick, required this.breathProgress, required this.onPresetChanged, required this.onCountSecondsChanged, required this.onPatternChanged, required this.onStart, required this.onTapBreath});
+  const _RespirationPracticePanel({required this.mode, required this.running, required this.preset, required this.countSeconds, required this.remainingSeconds, required this.tapCount, required this.liveBreathCount, required this.patternPick, required this.breathScale, required this.breathProgress, required this.onPresetChanged, required this.onCountSecondsChanged, required this.onPatternChanged, required this.onStart, required this.onTapBreath});
 
   final TrainingMode mode;
   final bool running;
@@ -595,6 +604,7 @@ class _RespirationPracticePanel extends StatelessWidget {
   final int tapCount;
   final int liveBreathCount;
   final RespirationPattern? patternPick;
+  final Animation<double> breathScale;
   final Animation<double> breathProgress;
   final ValueChanged<RespirationRangePreset?>? onPresetChanged;
   final ValueChanged<int>? onCountSecondsChanged;
@@ -630,6 +640,7 @@ class _RespirationPracticePanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _BreathingDisplay(
+            breathScale: breathScale,
             breathProgress: breathProgress,
             running: running,
             remainingSeconds: remainingSeconds,
@@ -677,8 +688,9 @@ class _RespirationPracticePanel extends StatelessWidget {
 }
 
 class _BreathingDisplay extends StatelessWidget {
-  const _BreathingDisplay({required this.breathProgress, required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.title, required this.subtitle});
+  const _BreathingDisplay({required this.breathScale, required this.breathProgress, required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.title, required this.subtitle});
 
+  final Animation<double> breathScale;
   final Animation<double> breathProgress;
   final bool running;
   final int remainingSeconds;
@@ -708,7 +720,7 @@ class _BreathingDisplay extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           AnimatedBuilder(
-            animation: breathProgress,
+            animation: Listenable.merge([breathScale, breathProgress]),
             builder: (context, _) {
               final t = running ? breathProgress.value : 0.25;
               String asset;
@@ -723,40 +735,43 @@ class _BreathingDisplay extends StatelessWidget {
               } else {
                 asset = 'assets/images/resp_chest_frame_1.png';
               }
-              return Container(
-                width: 250,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.84),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: cs.outline.withValues(alpha: 0.16)),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 22, offset: const Offset(0, 10))],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: Stack(
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 4 / 5,
-                        child: Image.asset(asset, fit: BoxFit.cover),
-                      ),
-                      Positioned(
-                        left: 12,
-                        right: 12,
-                        bottom: 12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.52),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            running ? (t < 0.5 ? 'Inhale' : 'Exhale') : 'Animated chest demo',
-                            textAlign: TextAlign.center,
-                            style: context.textStyles.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+              return Transform.scale(
+                scale: running ? breathScale.value : 1.0,
+                child: Container(
+                  width: 250,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.84),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: cs.outline.withValues(alpha: 0.16)),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 22, offset: const Offset(0, 10))],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Stack(
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 4 / 5,
+                          child: Image.asset(asset, fit: BoxFit.cover),
+                        ),
+                        Positioned(
+                          left: 12,
+                          right: 12,
+                          bottom: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.52),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Text(
+                              running ? (t < 0.5 ? 'Inhale' : 'Exhale') : 'Animated chest demo',
+                              textAlign: TextAlign.center,
+                              style: context.textStyles.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
