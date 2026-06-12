@@ -3,6 +3,7 @@ import 'package:emscode_sim_vitals/breath/breath_sound_simulator_page.dart';
 import 'package:emscode_sim_vitals/burn/rule_of_nines_page.dart';
 import 'package:emscode_sim_vitals/pupil/pupil_assessment_page.dart';
 import 'package:emscode_sim_vitals/pulse/pulse_test_page.dart';
+import 'package:emscode_sim_vitals/respirations/respirations_test_page.dart';
 import 'package:emscode_sim_vitals/stroke/stroke_assessment_page.dart';
 import 'package:emscode_sim_vitals/shared/training_summary_page.dart';
 import 'package:emscode_sim_vitals/case_flow/random_patient_case_page.dart';
@@ -173,6 +174,11 @@ class AppRouter {
         pageBuilder: (context, state) => const MaterialPage(child: PulseTestPage()),
       ),
       GoRoute(
+        path: AppRoutes.respirationsTest,
+        name: 'respirationsTest',
+        pageBuilder: (context, state) => const MaterialPage(child: RespirationsTestPage()),
+      ),
+      GoRoute(
         path: AppRoutes.strokeAssessment,
         name: 'strokeAssessment',
         pageBuilder: (context, state) => const MaterialPage(child: StrokeAssessmentPage()),
@@ -222,6 +228,7 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String bloodPressure = '/blood-pressure';
   static const String pulseTest = '/pulse-test';
+  static const String respirationsTest = '/respirations-test';
   static const String strokeAssessment = '/stroke-assessment';
   static const String pupilAssessment = '/pupil-assessment';
   static const String ruleOfNines = '/rule-of-nines';
