@@ -257,6 +257,7 @@ class _RuleOfNinesPageState extends State<RuleOfNinesPage> {
     final isTablet = MediaQuery.sizeOf(context).width >= 900;
 
     return Scaffold(
+      bottomNavigationBar: const EMSBottomNav(),
       body: CustomScrollView(
         slivers: [
           EMSVitalsHeader(title: 'Rule of Nines', onInfoPressed: _showInfo),
