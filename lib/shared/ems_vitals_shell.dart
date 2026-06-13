@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 class EMSVitalsScaffold extends StatelessWidget {
-  const EMSVitalsScaffold({super.key, required this.title, this.subtitle, this.onInfoPressed, this.onBackPressed, required this.bodySlivers, this.bottomPadding = true, this.showModePill = true});
+  const EMSVitalsScaffold({super.key, required this.title, this.subtitle, this.onInfoPressed, this.onBackPressed, required this.bodySlivers, this.bottomPadding = true, this.showModePill = true, this.showBackButton = true});
 
   final String title;
   final String? subtitle;
@@ -15,6 +15,7 @@ class EMSVitalsScaffold extends StatelessWidget {
   final List<Widget> bodySlivers;
   final bool bottomPadding;
   final bool showModePill;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +23,7 @@ class EMSVitalsScaffold extends StatelessWidget {
       bottomNavigationBar: const EMSBottomNav(),
       body: CustomScrollView(
         slivers: [
-          EMSVitalsHeader(title: title, onInfoPressed: onInfoPressed, onBackPressed: onBackPressed, showModePill: showModePill),
+          EMSVitalsHeader(title: title, onInfoPressed: onInfoPressed, onBackPressed: onBackPressed, showModePill: showModePill, showBackButton: showBackButton),
           if (subtitle != null)
             SliverToBoxAdapter(
               child: Padding(
@@ -113,12 +114,13 @@ class EMSBottomNav extends StatelessWidget {
 }
 
 class EMSVitalsHeader extends StatelessWidget {
-  const EMSVitalsHeader({super.key, required this.title, this.onInfoPressed, this.onBackPressed, this.showModePill = true});
+  const EMSVitalsHeader({super.key, required this.title, this.onInfoPressed, this.onBackPressed, this.showModePill = true, this.showBackButton = true});
 
   final String title;
   final VoidCallback? onInfoPressed;
   final VoidCallback? onBackPressed;
   final bool showModePill;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
@@ -138,12 +140,15 @@ class EMSVitalsHeader extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
               children: [
-                IconButton(
-                  onPressed: onBackPressed ?? () => context.go(AppRoutes.home),
-                  icon: const Icon(Icons.arrow_back),
-                  tooltip: 'Back to Home',
-                  style: const ButtonStyle(splashFactory: NoSplash.splashFactory, foregroundColor: WidgetStatePropertyAll(Colors.white)),
-                ),
+                  if (showBackButton)
+                    IconButton(
+                      onPressed: onBackPressed ?? () => context.go(AppRoutes.home),
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: 'Back',
+                      style: const ButtonStyle(splashFactory: NoSplash.splashFactory, foregroundColor: WidgetStatePropertyAll(Colors.white)),
+                    )
+                  else
+                    const SizedBox(width: 44),
                 Expanded(
                   child: Text(
                     title,
@@ -261,6 +266,27 @@ class EMSSectionCard extends StatelessWidget {
               child!,
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class EMSCentered extends StatelessWidget {
+  const EMSCentered({super.key, required this.child, this.maxWidth = 760, this.padding = const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md)});
+
+  final Widget child;
+  final double maxWidth;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: child,
         ),
       ),
     );

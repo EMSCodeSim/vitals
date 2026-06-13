@@ -91,14 +91,20 @@ class _WalkthroughHomePageState extends State<WalkthroughHomePage> {
                       ),
                       child: Column(
                         children: [
-                          SegmentedButton<WalkthroughMode>(
-                            showSelectedIcon: false,
-                            segments: [
-                              for (final m in WalkthroughMode.values)
-                                ButtonSegment(value: m, label: Text(m.label), icon: Icon(m == WalkthroughMode.learn ? Icons.school : m == WalkthroughMode.practice ? Icons.fitness_center : Icons.timer)),
-                            ],
-                            selected: {_mode},
-                            onSelectionChanged: (s) => setState(() => _mode = s.first),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: SegmentedButton<WalkthroughMode>(
+                                showSelectedIcon: false,
+                                segments: [
+                                  for (final m in WalkthroughMode.values)
+                                    ButtonSegment(value: m, label: Text(m.label), icon: Icon(m == WalkthroughMode.learn ? Icons.school : m == WalkthroughMode.practice ? Icons.fitness_center : Icons.timer)),
+                                ],
+                                selected: {_mode},
+                                onSelectionChanged: (s) => setState(() => _mode = s.first),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 10),
                           SizedBox(

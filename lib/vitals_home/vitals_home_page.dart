@@ -9,293 +9,44 @@ class VitalsHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      bottomNavigationBar: const EMSBottomNav(),
-      body: CustomScrollView(
-        slivers: [
-          const SliverToBoxAdapter(child: _HomeHeader()),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
-                110,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 820),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const _FreeVersionBadge(),
-                      const SizedBox(height: 16),
-
-                      _HomeActionCard(
-                        icon: Icons.monitor_heart,
-                        accent: AppColors.emsBlue,
-                        title: 'Vitals',
-                        subtitle:
-                            'Practice vital signs step-by-step (BP, pulse, respirations, pupils) and complete a full set.',
-                        chips: const [
-                          'BP',
-                          'Pulse',
-                          'Respirations',
-                          'Pupils',
-                          'Full set',
-                        ],
-                        buttonText: 'Open Vitals',
-                        onTap: () => context.push(AppRoutes.learnVitals),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      _HomeActionCard(
-                        icon: Icons.fact_check,
-                        accent: const Color(0xFF22C55E),
-                        title: 'Assessment',
-                        subtitle:
-                            'Practice the EMT assessment flow (primary, history, focused exams) and run patient scenarios.',
-                        chips: const [
-                          'Primary',
-                          'SAMPLE',
-                          'OPQRST',
-                          'Stroke',
-                          'Burns',
-                        ],
-                        buttonText: 'Open Assessment',
-                        onTap: () => context.push(AppRoutes.assessmentTools),
-                      ),
-                    ],
-                  ),
+    final cs = Theme.of(context).colorScheme;
+    return EMSVitalsScaffold(
+      title: 'EMSCodeSim Vitals',
+      subtitle: 'Pick a track: master the vitals, or practice the assessment flow and focused exams.',
+      showModePill: false,
+      showBackButton: false,
+      bodySlivers: [
+        SliverToBoxAdapter(
+          child: EMSCentered(
+            maxWidth: 820,
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 110),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _HomeActionCard(
+                  icon: Icons.monitor_heart,
+                  accent: cs.primary,
+                  title: 'Vitals',
+                  subtitle: 'Practice vital signs step-by-step (BP, pulse, respirations, pupils) and complete a full set.',
+                  chips: const ['BP', 'Pulse', 'Respirations', 'Pupils', 'Full set'],
+                  buttonText: 'Open Vitals',
+                  onTap: () => context.push(AppRoutes.learnVitals),
                 ),
-              ),
+                const SizedBox(height: 14),
+                _HomeActionCard(
+                  icon: Icons.fact_check,
+                  accent: Colors.green,
+                  title: 'Assessment',
+                  subtitle: 'Practice the EMT assessment flow (primary, history, focused exams) and run patient scenarios.',
+                  chips: const ['Primary', 'SAMPLE', 'OPQRST', 'Stroke', 'Burns'],
+                  buttonText: 'Open Assessment',
+                  onTap: () => context.push(AppRoutes.assessmentTools),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HomeHeader extends StatelessWidget {
-  const _HomeHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        MediaQuery.of(context).padding.top + 20,
-        AppSpacing.md,
-        24,
-      ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF061A33),
-            Color(0xFF0A2E55),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 820),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.emergency,
-                      color: Color(0xFF22D3FF),
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: RichText(
-                      text: const TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'EMS',
-                            style: TextStyle(
-                              color: Color(0xFF22D3FF),
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                          TextSpan(
-                            text: 'Code',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                          TextSpan(
-                            text: 'Sim',
-                            style: TextStyle(
-                              color: Color(0xFFFF4B55),
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Vitals + Assessment Trainer',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Pick a track: master the vitals, or practice the assessment flow and focused exams.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.84),
-                      height: 1.4,
-                    ),
-              ),
-              const SizedBox(height: 18),
-              const _HeroStatsRow(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeroStatsRow extends StatelessWidget {
-  const _HeroStatsRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: _HeroStat(
-            label: 'Free',
-            value: 'Adult',
-            icon: Icons.person,
-          ),
-        ),
-        SizedBox(width: 10),
-        Expanded(
-          child: _HeroStat(
-            label: 'Focus',
-            value: 'Normal?',
-            icon: Icons.check_circle,
-          ),
-        ),
-        SizedBox(width: 10),
-        Expanded(
-          child: _HeroStat(
-            label: 'Level',
-            value: 'EMT',
-            icon: Icons.school,
           ),
         ),
       ],
-    );
-  }
-}
-
-class _HeroStat extends StatelessWidget {
-  const _HeroStat({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.14),
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: Colors.white, size: 20),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                ),
-          ),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.70),
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FreeVersionBadge extends StatelessWidget {
-  const _FreeVersionBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFDCFCE7),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF86EFAC)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.lock_open, color: Color(0xFF15803D)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Free version: adult vitals and basic EMT assessment tools.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF14532D),
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

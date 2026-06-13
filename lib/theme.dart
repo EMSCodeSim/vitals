@@ -228,9 +228,32 @@ ThemeData get lightTheme => ThemeData(
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(12),
       side: BorderSide(
-        color: LightModeColors.lightOutline.withOpacity(0.2),
+        color: LightModeColors.lightOutline.withValues(alpha: 0.2),
         width: 1,
       ),
+    ),
+  ),
+  filledButtonTheme: FilledButtonThemeData(
+    style: ButtonStyle(
+      splashFactory: NoSplash.splashFactory,
+      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14, vertical: 14)),
+      textStyle: WidgetStatePropertyAll(GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14)),
+    ),
+  ),
+  outlinedButtonTheme: OutlinedButtonThemeData(
+    style: ButtonStyle(
+      splashFactory: NoSplash.splashFactory,
+      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14, vertical: 14)),
+      textStyle: WidgetStatePropertyAll(GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14)),
+    ),
+  ),
+  textButtonTheme: TextButtonThemeData(
+    style: ButtonStyle(
+      splashFactory: NoSplash.splashFactory,
+      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+      textStyle: WidgetStatePropertyAll(GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14)),
     ),
   ),
   textTheme: _buildTextTheme(Brightness.light),
@@ -273,9 +296,32 @@ ThemeData get darkTheme => ThemeData(
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(12),
       side: BorderSide(
-        color: DarkModeColors.darkOutline.withOpacity(0.2),
+        color: DarkModeColors.darkOutline.withValues(alpha: 0.2),
         width: 1,
       ),
+    ),
+  ),
+  filledButtonTheme: FilledButtonThemeData(
+    style: ButtonStyle(
+      splashFactory: NoSplash.splashFactory,
+      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14, vertical: 14)),
+      textStyle: WidgetStatePropertyAll(GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14)),
+    ),
+  ),
+  outlinedButtonTheme: OutlinedButtonThemeData(
+    style: ButtonStyle(
+      splashFactory: NoSplash.splashFactory,
+      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+      padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14, vertical: 14)),
+      textStyle: WidgetStatePropertyAll(GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14)),
+    ),
+  ),
+  textButtonTheme: TextButtonThemeData(
+    style: ButtonStyle(
+      splashFactory: NoSplash.splashFactory,
+      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+      textStyle: WidgetStatePropertyAll(GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14)),
     ),
   ),
   textTheme: _buildTextTheme(Brightness.dark),

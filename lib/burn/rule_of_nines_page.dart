@@ -256,129 +256,128 @@ class _RuleOfNinesPageState extends State<RuleOfNinesPage> {
 
     final isTablet = MediaQuery.sizeOf(context).width >= 900;
 
-    return Scaffold(
-      bottomNavigationBar: const EMSBottomNav(),
-      body: CustomScrollView(
-        slivers: [
-          EMSVitalsHeader(title: 'Rule of Nines', onInfoPressed: _showInfo),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
-              child: _ReminderBanner(),
-            ),
+    return EMSVitalsScaffold(
+      title: 'Rule of Nines',
+      subtitle: 'Tap burn regions to estimate %TBSA and review burn center criteria.',
+      onInfoPressed: _showInfo,
+      bodySlivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
+            child: _ReminderBanner(),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.xxl),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate(
-                [
-                  _PatientTypeCard(
-                    value: _patientType,
-                    onChanged: (v) {
-                      setState(() {
-                        _patientType = v;
-                        _riskChecks['Pediatric patient'] = v == BurnPatientType.pediatric;
-                      });
-                      _syncTbsaToFluidIfNeeded();
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _DiagramCard(
-                    patientType: _patientType,
-                    viewSide: _viewSide,
-                    onViewSideChanged: (v) => setState(() => _viewSide = v),
-                    selected: _selected,
-                    onToggle: _toggleRegion,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _BurnDepthCard(
-                    value: _burnDepth,
-                    onChanged: (v) {
-                      setState(() => _burnDepth = v);
-                      _syncTbsaToFluidIfNeeded();
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  if (isTablet)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _TbsaResultsCard(
-                            patientType: _patientType,
-                            depth: _burnDepth,
-                            selectedRegions: selectedRegions,
-                            tbsaCounted: _tbsaCounted,
-                            onReset: _resetRegions,
-                            onNewPractice: _newPracticeCase,
-                          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.xxl),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate(
+              [
+                _PatientTypeCard(
+                  value: _patientType,
+                  onChanged: (v) {
+                    setState(() {
+                      _patientType = v;
+                      _riskChecks['Pediatric patient'] = v == BurnPatientType.pediatric;
+                    });
+                    _syncTbsaToFluidIfNeeded();
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _DiagramCard(
+                  patientType: _patientType,
+                  viewSide: _viewSide,
+                  onViewSideChanged: (v) => setState(() => _viewSide = v),
+                  selected: _selected,
+                  onToggle: _toggleRegion,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _BurnDepthCard(
+                  value: _burnDepth,
+                  onChanged: (v) {
+                    setState(() => _burnDepth = v);
+                    _syncTbsaToFluidIfNeeded();
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (isTablet)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _TbsaResultsCard(
+                          patientType: _patientType,
+                          depth: _burnDepth,
+                          selectedRegions: selectedRegions,
+                          tbsaCounted: _tbsaCounted,
+                          onReset: _resetRegions,
+                          onNewPractice: _newPracticeCase,
                         ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: _PracticeCaseCard(
-                            currentCase: _practiceCase,
-                            feedback: _practiceFeedback,
-                            pass: _practicePass,
-                            details: _practiceDetails,
-                            onGenerate: _newPracticeCase,
-                            onCheck: _checkPracticeAnswer,
-                          ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: _PracticeCaseCard(
+                          currentCase: _practiceCase,
+                          feedback: _practiceFeedback,
+                          pass: _practicePass,
+                          details: _practiceDetails,
+                          onGenerate: _newPracticeCase,
+                          onCheck: _checkPracticeAnswer,
                         ),
-                      ],
-                    )
-                  else ...[
-                    _TbsaResultsCard(
-                      patientType: _patientType,
-                      depth: _burnDepth,
-                      selectedRegions: selectedRegions,
-                      tbsaCounted: _tbsaCounted,
-                      onReset: _resetRegions,
-                      onNewPractice: _newPracticeCase,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _PracticeCaseCard(
-                      currentCase: _practiceCase,
-                      feedback: _practiceFeedback,
-                      pass: _practicePass,
-                      details: _practiceDetails,
-                      onGenerate: _newPracticeCase,
-                      onCheck: _checkPracticeAnswer,
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.md),
-                  _PalmarMethodCard(
-                    palms: _palms,
-                    controller: _palmsCtrl,
-                    onChanged: (v) => setState(() => _palms = v),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _FluidEstimateCard(
-                    weightKgCtrl: _weightKgCtrl,
-                    hoursSinceCtrl: _hoursSinceCtrl,
-                    tbsaCtrl: _tbsaForFluidCtrl,
-                    onTbsaChanged: () => _fluidManuallyEditedTbsa = true,
-                    tbsaCounted: _tbsaCounted,
-                    parseDouble: _parseDouble,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _BurnCenterConsiderationsCard(
+                      ),
+                    ],
+                  )
+                else ...[
+                  _TbsaResultsCard(
                     patientType: _patientType,
-                    tbsaCounted: _tbsaCounted,
                     depth: _burnDepth,
-                    checks: _riskChecks,
-                    onChanged: (k, v) => setState(() => _riskChecks[k] = v),
+                    selectedRegions: selectedRegions,
+                    tbsaCounted: _tbsaCounted,
+                    onReset: _resetRegions,
+                    onNewPractice: _newPracticeCase,
                   ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Text(
-                    'Totals check: adult=${BurnRegions.totalFor(BurnPatientType.adult)}%, pediatric=${BurnRegions.totalFor(BurnPatientType.pediatric)}%',
-                    style: context.textStyles.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+                  const SizedBox(height: AppSpacing.md),
+                  _PracticeCaseCard(
+                    currentCase: _practiceCase,
+                    feedback: _practiceFeedback,
+                    pass: _practicePass,
+                    details: _practiceDetails,
+                    onGenerate: _newPracticeCase,
+                    onCheck: _checkPracticeAnswer,
                   ),
                 ],
-              ),
+                const SizedBox(height: AppSpacing.md),
+                _PalmarMethodCard(
+                  palms: _palms,
+                  controller: _palmsCtrl,
+                  onChanged: (v) => setState(() => _palms = v),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _FluidEstimateCard(
+                  weightKgCtrl: _weightKgCtrl,
+                  hoursSinceCtrl: _hoursSinceCtrl,
+                  tbsaCtrl: _tbsaForFluidCtrl,
+                  onTbsaChanged: () => _fluidManuallyEditedTbsa = true,
+                  tbsaCounted: _tbsaCounted,
+                  parseDouble: _parseDouble,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _BurnCenterConsiderationsCard(
+                  patientType: _patientType,
+                  tbsaCounted: _tbsaCounted,
+                  depth: _burnDepth,
+                  checks: _riskChecks,
+                  onChanged: (k, v) => setState(() => _riskChecks[k] = v),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Text(
+                  'Totals check: adult=${BurnRegions.totalFor(BurnPatientType.adult)}%, pediatric=${BurnRegions.totalFor(BurnPatientType.pediatric)}%',
+                  style: context.textStyles.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -428,15 +427,18 @@ class _PatientTypeCard extends StatelessWidget {
           children: [
             Text('Patient Type', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: AppSpacing.sm),
-            SegmentedButton<BurnPatientType>(
-              segments: const [
-                ButtonSegment(value: BurnPatientType.adult, label: Text('Adult'), icon: Icon(Icons.person)),
-                ButtonSegment(value: BurnPatientType.pediatric, label: Text('Pediatric / Small Child'), icon: Icon(Icons.child_care)),
-              ],
-              selected: {value},
-              onSelectionChanged: (s) => onChanged(s.first),
-              showSelectedIcon: false,
-              style: ButtonStyle(splashFactory: NoSplash.splashFactory),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<BurnPatientType>(
+                segments: const [
+                  ButtonSegment(value: BurnPatientType.adult, label: Text('Adult'), icon: Icon(Icons.person)),
+                  ButtonSegment(value: BurnPatientType.pediatric, label: Text('Pediatric / Small Child'), icon: Icon(Icons.child_care)),
+                ],
+                selected: {value},
+                onSelectionChanged: (s) => onChanged(s.first),
+                showSelectedIcon: false,
+                style: ButtonStyle(splashFactory: NoSplash.splashFactory),
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text('Rule totals: ${_fmtPct(BurnRegions.totalFor(value))}', style: context.textStyles.labelMedium?.copyWith(color: cs.onSurfaceVariant)),
@@ -472,15 +474,23 @@ class _DiagramCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(child: Text('Burn Body Diagram', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
-                SegmentedButton<BurnViewSide>(
-                  segments: const [
-                    ButtonSegment(value: BurnViewSide.front, label: Text('Front')),
-                    ButtonSegment(value: BurnViewSide.back, label: Text('Back')),
-                  ],
-                  selected: {viewSide},
-                  onSelectionChanged: (s) => onViewSideChanged(s.first),
-                  showSelectedIcon: false,
-                  style: ButtonStyle(splashFactory: NoSplash.splashFactory),
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SegmentedButton<BurnViewSide>(
+                        segments: const [
+                          ButtonSegment(value: BurnViewSide.front, label: Text('Front')),
+                          ButtonSegment(value: BurnViewSide.back, label: Text('Back')),
+                        ],
+                        selected: {viewSide},
+                        onSelectionChanged: (s) => onViewSideChanged(s.first),
+                        showSelectedIcon: false,
+                        style: ButtonStyle(splashFactory: NoSplash.splashFactory),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

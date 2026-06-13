@@ -443,20 +443,18 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
     final rightMm = _ratioToMm(rightRatio);
     final leftMm = _ratioToMm(leftRatio);
 
-    return Scaffold(
-      bottomNavigationBar: const EMSBottomNav(),
-      body: CustomScrollView(
-        slivers: [
-          EMSVitalsHeader(title: 'Pupil Assessment', onInfoPressed: _showInfo),
-          SliverToBoxAdapter(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxContentWidth),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xxl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+    return EMSVitalsScaffold(
+      title: 'Pupil Assessment',
+      subtitle: 'Check pupils for size + reactivity and assess eye tracking.',
+      onInfoPressed: _showInfo,
+      bodySlivers: [
+        SliverToBoxAdapter(
+          child: EMSCentered(
+            maxWidth: maxContentWidth,
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xxl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(AppSpacing.md),
@@ -687,14 +685,11 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
                           ),
                         ),
                       ],
-                    ],
-                  ),
-                ),
-              ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -353,127 +353,123 @@ class _StrokeAssessmentPageState extends State<StrokeAssessmentPage> with Ticker
     final width = MediaQuery.sizeOf(context).width;
     final bool twoCol = width >= 920;
 
-    return Scaffold(
-      bottomNavigationBar: const EMSBottomNav(),
-      body: CustomScrollView(
-        slivers: [
-          EMSVitalsHeader(
-            title: 'Stroke Assessment',
-            onInfoPressed: _showInfo,
-            onBackPressed: () {
-              _safeStopSpeech();
-              context.go(AppRoutes.home);
-            },
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xxl),
-            sliver: SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  _PatientInfoCard(strokeCase: _case, mode: mode),
+    return EMSVitalsScaffold(
+      title: 'Stroke Assessment',
+      subtitle: 'Run a FAST-style exam and choose findings, then score yourself.',
+      onInfoPressed: _showInfo,
+      onBackPressed: () {
+        _safeStopSpeech();
+        context.go(AppRoutes.home);
+      },
+      bodySlivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xxl),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              children: [
+                _PatientInfoCard(strokeCase: _case, mode: mode),
+                const SizedBox(height: AppSpacing.md),
+                if (!twoCol) ...[
+                  _SimulatorCard(
+                    cs: cs,
+                    strokeCase: _case,
+                    activeTest: _activeTest,
+                    instruction: _instruction,
+                    balanceController: _balanceController,
+                    eyesController: _eyesController,
+                    armTimerController: _armTimerController,
+                    onSelectTest: _selectTest,
+                    onResetView: _resetView,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  if (!twoCol) ...[
-                    _SimulatorCard(
-                      cs: cs,
-                      strokeCase: _case,
-                      activeTest: _activeTest,
-                      instruction: _instruction,
-                      balanceController: _balanceController,
-                      eyesController: _eyesController,
-                      armTimerController: _armTimerController,
-                      onSelectTest: _selectTest,
-                      onResetView: _resetView,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _FindingsCard(
-                      cs: cs,
-                      balancePick: _balancePick,
-                      eyesPick: _eyesPick,
-                      facePick: _facePick,
-                      armsPick: _armsPick,
-                      speechPick: _speechPick,
-                      timePick: _timePick,
-                      onBalanceChanged: (v) => setState(() => _balancePick = v),
-                      onEyesChanged: (v) => setState(() => _eyesPick = v),
-                      onFaceChanged: (v) => setState(() => _facePick = v),
-                      onArmsChanged: (v) => setState(() => _armsPick = v),
-                      onSpeechChanged: (v) => setState(() => _speechPick = v),
-                      onTimeChanged: (v) => setState(() => _timePick = v),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    _ActionButtons(
-                      onShowResults: _showResultsNow,
-                      onNextCase: _nextCase,
-                      onReset: _resetFormOnly,
-                    ),
-                  ] else ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _SimulatorCard(
-                            cs: cs,
-                            strokeCase: _case,
-                            activeTest: _activeTest,
-                            instruction: _instruction,
-                            balanceController: _balanceController,
-                            eyesController: _eyesController,
-                            armTimerController: _armTimerController,
-                            onSelectTest: _selectTest,
-                            onResetView: _resetView,
-                          ),
+                  _FindingsCard(
+                    cs: cs,
+                    balancePick: _balancePick,
+                    eyesPick: _eyesPick,
+                    facePick: _facePick,
+                    armsPick: _armsPick,
+                    speechPick: _speechPick,
+                    timePick: _timePick,
+                    onBalanceChanged: (v) => setState(() => _balancePick = v),
+                    onEyesChanged: (v) => setState(() => _eyesPick = v),
+                    onFaceChanged: (v) => setState(() => _facePick = v),
+                    onArmsChanged: (v) => setState(() => _armsPick = v),
+                    onSpeechChanged: (v) => setState(() => _speechPick = v),
+                    onTimeChanged: (v) => setState(() => _timePick = v),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _ActionButtons(
+                    onShowResults: _showResultsNow,
+                    onNextCase: _nextCase,
+                    onReset: _resetFormOnly,
+                  ),
+                ] else ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _SimulatorCard(
+                          cs: cs,
+                          strokeCase: _case,
+                          activeTest: _activeTest,
+                          instruction: _instruction,
+                          balanceController: _balanceController,
+                          eyesController: _eyesController,
+                          armTimerController: _armTimerController,
+                          onSelectTest: _selectTest,
+                          onResetView: _resetView,
                         ),
-                        const SizedBox(width: AppSpacing.md),
-                        SizedBox(
-                          width: 420,
-                          child: Column(
-                            children: [
-                              _FindingsCard(
-                                cs: cs,
-                                balancePick: _balancePick,
-                                eyesPick: _eyesPick,
-                                facePick: _facePick,
-                                armsPick: _armsPick,
-                                speechPick: _speechPick,
-                                timePick: _timePick,
-                                onBalanceChanged: (v) => setState(() => _balancePick = v),
-                                onEyesChanged: (v) => setState(() => _eyesPick = v),
-                                onFaceChanged: (v) => setState(() => _facePick = v),
-                                onArmsChanged: (v) => setState(() => _armsPick = v),
-                                onSpeechChanged: (v) => setState(() => _speechPick = v),
-                                onTimeChanged: (v) => setState(() => _timePick = v),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              _ActionButtons(
-                                onShowResults: _showResultsNow,
-                                onNextCase: _nextCase,
-                                onReset: _resetFormOnly,
-                              ),
-                            ],
-                          ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      SizedBox(
+                        width: 420,
+                        child: Column(
+                          children: [
+                            _FindingsCard(
+                              cs: cs,
+                              balancePick: _balancePick,
+                              eyesPick: _eyesPick,
+                              facePick: _facePick,
+                              armsPick: _armsPick,
+                              speechPick: _speechPick,
+                              timePick: _timePick,
+                              onBalanceChanged: (v) => setState(() => _balancePick = v),
+                              onEyesChanged: (v) => setState(() => _eyesPick = v),
+                              onFaceChanged: (v) => setState(() => _facePick = v),
+                              onArmsChanged: (v) => setState(() => _armsPick = v),
+                              onSpeechChanged: (v) => setState(() => _speechPick = v),
+                              onTimeChanged: (v) => setState(() => _timePick = v),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _ActionButtons(
+                              onShowResults: _showResultsNow,
+                              onNextCase: _nextCase,
+                              onReset: _resetFormOnly,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
-                  if (_showResults) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    _ResultsCard(
-                      cs: cs,
-                      gradeLines: _gradeLines,
-                      resultsSummary: _resultsSummary,
-                      timeSummary: _timeSummary,
-                      meaningText: _meaningText,
-                      showSideNote: _sideNote,
-                      correctTimeBucket: _timeBucketForMinutes(_case.lastKnownWellMinutes),
-                      studentTimeBucket: _timePick,
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ],
-              ),
+                if (_showResults) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _ResultsCard(
+                    cs: cs,
+                    gradeLines: _gradeLines,
+                    resultsSummary: _resultsSummary,
+                    timeSummary: _timeSummary,
+                    meaningText: _meaningText,
+                    showSideNote: _sideNote,
+                    correctTimeBucket: _timeBucketForMinutes(_case.lastKnownWellMinutes),
+                    studentTimeBucket: _timePick,
+                  ),
+                ],
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

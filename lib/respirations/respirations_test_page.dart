@@ -642,13 +642,19 @@ class _RespirationPracticePanel extends StatelessWidget {
             onChanged: onPresetChanged,
           ),
           const SizedBox(height: 12),
-          SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 15, label: Text('15 sec'), icon: Icon(Icons.timer_rounded)),
-              ButtonSegment(value: 30, label: Text('30 sec'), icon: Icon(Icons.timer_rounded)),
-            ],
-            selected: {countSeconds},
-            onSelectionChanged: onCountSecondsChanged == null ? null : (v) => onCountSecondsChanged!(v.first),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(value: 15, label: Text('15 sec'), icon: Icon(Icons.timer_rounded)),
+                  ButtonSegment(value: 30, label: Text('30 sec'), icon: Icon(Icons.timer_rounded)),
+                ],
+                selected: {countSeconds},
+                onSelectionChanged: onCountSecondsChanged == null ? null : (v) => onCountSecondsChanged!(v.first),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           _BreathingDisplay(
