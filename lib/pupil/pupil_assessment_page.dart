@@ -444,6 +444,7 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
     final leftMm = _ratioToMm(leftRatio);
 
     return Scaffold(
+      bottomNavigationBar: const EMSBottomNav(),
       body: CustomScrollView(
         slivers: [
           EMSVitalsHeader(title: 'Pupil Assessment', onInfoPressed: _showInfo),
