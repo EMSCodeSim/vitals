@@ -19,6 +19,7 @@ class EMSVitalsScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const EMSBottomNav(),
       body: CustomScrollView(
         slivers: [
           EMSVitalsHeader(title: title, onInfoPressed: onInfoPressed, onBackPressed: onBackPressed, showModePill: showModePill),
@@ -37,6 +38,75 @@ class EMSVitalsScaffold extends StatelessWidget {
           ...bodySlivers,
           if (bottomPadding) const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
         ],
+      ),
+    );
+  }
+}
+
+class EMSBottomNav extends StatelessWidget {
+  const EMSBottomNav({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final location = GoRouterState.of(context).uri.path;
+
+    Widget navButton({required IconData icon, required String label, required String route, bool filled = false}) {
+      final selected = location == route || (route != AppRoutes.home && location.startsWith(route));
+      final onPressed = selected ? null : () => context.go(route);
+      final child = Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 6),
+          Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+        ],
+      );
+
+      if (filled) {
+        return FilledButton(
+          onPressed: onPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: selected ? cs.primary.withValues(alpha: 0.68) : cs.primary,
+            foregroundColor: cs.onPrimary,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          child: child,
+        );
+      }
+
+      return OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: selected ? cs.primary : cs.onSurface,
+          side: BorderSide(color: selected ? cs.primary : cs.outline.withValues(alpha: 0.28)),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: child,
+      );
+    }
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: cs.surface,
+          border: Border(top: BorderSide(color: cs.outline.withValues(alpha: 0.16))),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 18, offset: const Offset(0, -6))],
+        ),
+        child: Row(
+          children: [
+            Expanded(child: navButton(icon: Icons.monitor_heart, label: 'Vitals', route: AppRoutes.learnVitals)),
+            const SizedBox(width: 8),
+            Expanded(child: navButton(icon: Icons.check_circle, label: 'Normal', route: AppRoutes.fullVitalsSet, filled: true)),
+            const SizedBox(width: 8),
+            Expanded(child: navButton(icon: Icons.fact_check, label: 'Assess', route: AppRoutes.assessmentTools)),
+          ],
+        ),
       ),
     );
   }
