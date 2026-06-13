@@ -1,5 +1,6 @@
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/theme.dart';
+import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,7 +10,7 @@ class VitalsHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: const _FixedNavBar(),
+      bottomNavigationBar: const EMSBottomNav(),
       body: CustomScrollView(
         slivers: [
           const SliverToBoxAdapter(child: _HomeHeader()),
@@ -177,10 +178,92 @@ class _HomeHeader extends StatelessWidget {
                       height: 1.4,
                     ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 18),
+              const _HeroStatsRow(),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HeroStatsRow extends StatelessWidget {
+  const _HeroStatsRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        Expanded(
+          child: _HeroStat(
+            label: 'Free',
+            value: 'Adult',
+            icon: Icons.person,
+          ),
+        ),
+        SizedBox(width: 10),
+        Expanded(
+          child: _HeroStat(
+            label: 'Focus',
+            value: 'Normal?',
+            icon: Icons.check_circle,
+          ),
+        ),
+        SizedBox(width: 10),
+        Expanded(
+          child: _HeroStat(
+            label: 'Level',
+            value: 'EMT',
+            icon: Icons.school,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white, size: 20),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.70),
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
       ),
     );
   }
