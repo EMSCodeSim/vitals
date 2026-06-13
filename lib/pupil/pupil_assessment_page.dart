@@ -489,11 +489,11 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
                                 style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
                               ),
                               const SizedBox(height: AppSpacing.md),
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final wide = constraints.maxWidth >= 640;
-                                  final children = [
-                                    _EyePanel(
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: _EyePanel(
                                       sideLabel: 'Right side',
                                       mm: rightMm,
                                       ratioPercent: rightRatio,
@@ -502,7 +502,10 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
                                       onPenlight: () => _runPenlight(isRightSide: true),
                                       buttonText: '💡 Penlight — Right side',
                                     ),
-                                    _EyePanel(
+                                  ),
+                                  const SizedBox(width: AppSpacing.md),
+                                  Expanded(
+                                    child: _EyePanel(
                                       sideLabel: 'Left side',
                                       mm: leftMm,
                                       ratioPercent: leftRatio,
@@ -511,25 +514,8 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
                                       onPenlight: () => _runPenlight(isRightSide: false),
                                       buttonText: '💡 Penlight — Left side',
                                     ),
-                                  ];
-                                  if (wide) {
-                                    return Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(child: children[0]),
-                                        const SizedBox(width: AppSpacing.md),
-                                        Expanded(child: children[1]),
-                                      ],
-                                    );
-                                  }
-                                  return Column(
-                                    children: [
-                                      children[0],
-                                      const SizedBox(height: AppSpacing.md),
-                                      children[1],
-                                    ],
-                                  );
-                                },
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -782,9 +768,19 @@ class _EyePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$sideLabel Pupil: ${mm.toStringAsFixed(1)} mm (ratio ${ratioPercent.toStringAsFixed(0)}%)',
-            style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+          // Keep both eye displays vertically aligned by giving the header
+          // a consistent height (prevents wrap differences from shifting the eye).
+          SizedBox(
+            height: 44,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '$sideLabel Pupil: ${mm.toStringAsFixed(1)} mm (ratio ${ratioPercent.toStringAsFixed(0)}%)',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           AspectRatio(
@@ -822,7 +818,12 @@ class _EyePanel extends StatelessWidget {
                 splashFactory: NoSplash.splashFactory,
                 shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
               ),
-              child: Text(buttonText),
+              child: Text(
+                buttonText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         ],

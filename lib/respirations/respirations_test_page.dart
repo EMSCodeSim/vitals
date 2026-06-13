@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/nav.dart';
-import 'package:emscode_sim_vitals/pulse/pulse_beep_player.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
 import 'package:emscode_sim_vitals/shared/training_summary_page.dart';
 import 'package:emscode_sim_vitals/theme.dart';
@@ -53,7 +52,7 @@ class RespirationsTestPage extends StatefulWidget {
 
 class _RespirationsTestPageState extends State<RespirationsTestPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _rng = Random();
-  final PulseBeepPlayer _cue = PulseBeepPlayer();
+  final TextEditingController _countedBreathsController = TextEditingController();
 
   RespirationRangePreset _preset = RespirationRangePreset.normalAdult;
   RespirationRangePreset _guidedPreset = RespirationRangePreset.normalAdult;
@@ -64,7 +63,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
   bool _running = false;
   int _remainingSeconds = 0;
   int _liveBreathCount = 0;
-  int _tapCount = 0;
+  bool _awaitingPracticeEntry = false;
 
   int? _actualRr;
   RespirationPattern? _actualPattern;
@@ -101,7 +100,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
     WidgetsBinding.instance.removeObserver(this);
     _stopAll();
     _breathController.dispose();
-    _cue.dispose();
+    _countedBreathsController.dispose();
     super.dispose();
   }
 
@@ -112,15 +111,12 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
     }
   }
 
-  Future<void> _unlockAudio() => _cue.unlockFromUserGesture();
-
   void _stopAll() {
     _breathTimer?.cancel();
     _breathTimer = null;
     _countdownTimer?.cancel();
     _countdownTimer = null;
     _breathController.stop();
-    _cue.stop();
     _running = false;
   }
 
@@ -149,14 +145,14 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
       _guidedRun = false;
       _remainingSeconds = 0;
       _liveBreathCount = 0;
-      _tapCount = 0;
+      _awaitingPracticeEntry = false;
+      _countedBreathsController.clear();
       _feedback = null;
       _feedbackKind = null;
     });
   }
 
   Future<void> _startGuidedRespirations() async {
-    await _unlockAudio();
     _stopAll();
 
     final rr = _guidedDemoRate(_guidedPreset);
@@ -174,7 +170,8 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
       _running = true;
       _remainingSeconds = 30;
       _liveBreathCount = 0;
-      _tapCount = 0;
+      _awaitingPracticeEntry = false;
+      _countedBreathsController.clear();
       _patternPick = pattern;
       _feedback = null;
       _feedbackKind = null;
@@ -186,7 +183,6 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
   }
 
   Future<void> _startPractice() async {
-    await _unlockAudio();
     _stopAll();
 
     final (minRr, maxRr) = _preset.rrRange;
@@ -200,7 +196,8 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
       _running = true;
       _remainingSeconds = _countSeconds;
       _liveBreathCount = 0;
-      _tapCount = 0;
+      _awaitingPracticeEntry = false;
+      _countedBreathsController.clear();
       _patternPick = null;
       _feedback = null;
       _feedbackKind = null;
@@ -231,18 +228,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
       if (!mounted || !_running) return;
       _breathController.forward(from: 0);
       setState(() => _liveBreathCount++);
-      unawaited(HapticFeedback.selectionClick());
-      try {
-        final volume = switch (pattern) {
-          RespirationPattern.shallow => 0.35,
-          RespirationPattern.labored => 0.80,
-          RespirationPattern.irregular => 0.60,
-          RespirationPattern.regular => 0.50,
-        };
-        await _cue.playOnce(volume: volume);
-      } catch (e) {
-        debugPrint('Respiration cue failed: $e');
-      }
+      // No beep cues in practice; keep visuals only.
     }
 
     void scheduleNext({required bool first}) {
@@ -260,7 +246,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
 
   void _registerTap() {
     if (!_running) return;
-    setState(() => _tapCount++);
+    // Tapping to count was removed. Students should enter their count after the timer ends.
   }
 
   void _stopAndRefresh() {
@@ -290,7 +276,28 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
       return;
     }
 
-    final estimated = ((_tapCount * 60) / _countSeconds).round();
+    // For practice, the student enters their count after the timer ends.
+    setState(() {
+      _awaitingPracticeEntry = true;
+      _feedback = null;
+      _feedbackKind = null;
+    });
+  }
+
+  void _submitPracticeEntry() {
+    final rr = _actualRr;
+    if (rr == null) return;
+
+    final parsed = int.tryParse(_countedBreathsController.text.trim());
+    if (parsed == null || parsed <= 0) {
+      setState(() {
+        _feedbackKind = EMSResultKind.warning;
+        _feedback = 'Enter the number of breaths you counted (a positive whole number).';
+      });
+      return;
+    }
+
+    final estimated = ((parsed * 60) / _countSeconds).round();
     final diff = (estimated - rr).abs();
     final tol = _countSeconds == 30 ? 2 : 4;
     final within = diff <= tol;
@@ -324,8 +331,9 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
     }
 
     setState(() {
-      _feedbackKind = within ? EMSResultKind.success : EMSResultKind.warning;
-      _feedback = 'Actual: $rr/min (${_actualPattern?.label ?? '—'})\nYour count: $_tapCount breaths in $_countSeconds seconds\nYour estimate: $estimated/min\nDifference: $diff/min (tolerance ±$tol)\n\n${within ? '✅ Within tolerance.' : '❌ Outside tolerance.'}\n\n$explanation';
+      _awaitingPracticeEntry = false;
+      _feedbackKind = (within && patternOk) ? EMSResultKind.success : EMSResultKind.warning;
+      _feedback = 'Actual: $rr/min (${_actualPattern?.label ?? '—'})\nYour count: $parsed breaths in $_countSeconds seconds\nYour estimate: $estimated/min\nDifference: $diff/min (tolerance ±$tol)\n\n${within ? '✅ Rate within tolerance.' : '❌ Rate outside tolerance.'}\n${patternOk ? '✅ Pattern correct.' : '❌ Pattern incorrect.'}\n\n$explanation';
     });
   }
 
@@ -334,7 +342,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
       context,
       title: 'Respirations walkthrough',
       children: const [
-        Text('Use the photo cue first, then run a 30-second visual count. One full rise and fall equals one breath. Practice mode lets students tap each breath and compare their documented rate.'),
+        Text('Use the photo cue first, then run a 30-second visual count. One full rise and fall equals one breath. In practice, count quietly and enter your total when the timer ends.'),
         SizedBox(height: 12),
         Text('Training only — not medical advice.'),
       ],
@@ -392,8 +400,8 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
                         preset: _preset,
                         countSeconds: _countSeconds,
                         remainingSeconds: _remainingSeconds,
-                        tapCount: _tapCount,
-                        liveBreathCount: _liveBreathCount,
+                        awaitingEntry: _awaitingPracticeEntry,
+                        countedBreathsController: _countedBreathsController,
                         patternPick: _patternPick,
                         breathScale: _breathScale,
                         breathProgress: _breathController,
@@ -401,7 +409,7 @@ class _RespirationsTestPageState extends State<RespirationsTestPage> with Single
                         onCountSecondsChanged: running ? null : (v) => setState(() => _countSeconds = v),
                         onPatternChanged: (v) => setState(() => _patternPick = v),
                         onStart: _startPractice,
-                        onTapBreath: _registerTap,
+                        onSubmit: _submitPracticeEntry,
                       ),
                     if (_feedback != null && _feedbackKind != null) ...[
                       const SizedBox(height: AppSpacing.md),
@@ -530,7 +538,7 @@ class _RespirationGuidedPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return EMSSectionCard(
       title: 'Guided demo: 30-second respiratory count',
-      subtitle: 'The app shows the breathing cue and keeps a live count. Beep + phone vibration mark each breath for training.',
+      subtitle: 'Watch the chest rise and fall for 30 seconds. Use this to practice staying subtle while counting.',
       child: Column(
         children: [
           DropdownButtonFormField<RespirationRangePreset>(
@@ -549,6 +557,7 @@ class _RespirationGuidedPanel extends StatelessWidget {
             running: running,
             remainingSeconds: remainingSeconds,
             liveBreathCount: liveBreathCount,
+            showLiveCount: true,
             title: running ? 'Watch the chest rise and fall' : 'Tap Start Demo',
             subtitle: running ? 'Live count: $liveBreathCount breaths' : 'Animated chest demo at ${switch (guidedPreset) { RespirationRangePreset.slow => '8', RespirationRangePreset.normalAdult => '16', RespirationRangePreset.fast => '24', RespirationRangePreset.distress => '32', RespirationRangePreset.irregular => 'variable' }}/min',
           ),
@@ -594,15 +603,15 @@ class _RespirationGuidedPanel extends StatelessWidget {
 }
 
 class _RespirationPracticePanel extends StatelessWidget {
-  const _RespirationPracticePanel({required this.mode, required this.running, required this.preset, required this.countSeconds, required this.remainingSeconds, required this.tapCount, required this.liveBreathCount, required this.patternPick, required this.breathScale, required this.breathProgress, required this.onPresetChanged, required this.onCountSecondsChanged, required this.onPatternChanged, required this.onStart, required this.onTapBreath});
+  const _RespirationPracticePanel({required this.mode, required this.running, required this.preset, required this.countSeconds, required this.remainingSeconds, required this.awaitingEntry, required this.countedBreathsController, required this.patternPick, required this.breathScale, required this.breathProgress, required this.onPresetChanged, required this.onCountSecondsChanged, required this.onPatternChanged, required this.onStart, required this.onSubmit});
 
   final TrainingMode mode;
   final bool running;
   final RespirationRangePreset preset;
   final int countSeconds;
   final int remainingSeconds;
-  final int tapCount;
-  final int liveBreathCount;
+  final bool awaitingEntry;
+  final TextEditingController countedBreathsController;
   final RespirationPattern? patternPick;
   final Animation<double> breathScale;
   final Animation<double> breathProgress;
@@ -610,13 +619,16 @@ class _RespirationPracticePanel extends StatelessWidget {
   final ValueChanged<int>? onCountSecondsChanged;
   final ValueChanged<RespirationPattern?> onPatternChanged;
   final VoidCallback onStart;
-  final VoidCallback onTapBreath;
+  final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return EMSSectionCard(
       title: 'Practice: count and document respirations',
-      subtitle: mode == TrainingMode.test ? 'Test mode: tap each breath, choose the pattern, then get a score.' : 'Tap Count Breath each time you see one full rise and fall.',
+      subtitle: mode == TrainingMode.test
+          ? 'Test mode: watch the full timer, then enter your count and select the pattern.'
+          : 'Watch quietly for the full interval, then enter how many breaths you counted.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -644,21 +656,53 @@ class _RespirationPracticePanel extends StatelessWidget {
             breathProgress: breathProgress,
             running: running,
             remainingSeconds: remainingSeconds,
-            liveBreathCount: liveBreathCount,
+            liveBreathCount: 0,
+            showLiveCount: false,
             title: running ? 'Count every full breath' : 'Ready for practice',
-            subtitle: running ? 'Your taps: $tapCount' : 'Press start, then tap each breath',
+            subtitle: running ? 'Count silently, then enter your total' : 'Press start, then count for the full timer',
           ),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             height: 58,
             child: FilledButton.icon(
-              onPressed: running ? onTapBreath : onStart,
+              onPressed: running ? null : onStart,
               style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)))),
-              icon: Icon(running ? Icons.add_circle_rounded : Icons.play_arrow_rounded, color: Colors.white),
-              label: Text(running ? 'Count Breath  •  $tapCount' : 'Start Practice', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+              label: const Text('Start Practice', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
             ),
           ),
+          if (running) ...[
+            const SizedBox(height: 10),
+            Text('Tip: keep your eyes on the chest/abdomen and avoid obvious counting.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35)),
+          ],
+          if (awaitingEntry) ...[
+            const SizedBox(height: 14),
+            Text('Enter your count', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: countedBreathsController,
+              enabled: !running,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: InputDecoration(
+                labelText: 'Breaths counted in $countSeconds seconds',
+                hintText: 'e.g., 8',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: onSubmit,
+                style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+                icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
+                label: const Text('Submit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Text('Document breathing quality:', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
@@ -669,17 +713,11 @@ class _RespirationPracticePanel extends StatelessWidget {
               for (final p in RespirationPattern.values)
                 ChoiceChip(
                   selected: patternPick == p,
-                  onSelected: (_) => onPatternChanged(p),
+                  onSelected: running ? null : (_) => onPatternChanged(p),
                   label: Text(p.label),
                   showCheckmark: false,
                 ),
             ],
-          ),
-          const SizedBox(height: 10),
-          EMSResultBox(
-            title: 'Charting reminder',
-            message: 'Document RR plus quality: unlabored, shallow, labored, irregular, ability to speak, skin color, SpO₂, and response after treatment.',
-            kind: EMSResultKind.info,
           ),
         ],
       ),
@@ -688,13 +726,14 @@ class _RespirationPracticePanel extends StatelessWidget {
 }
 
 class _BreathingDisplay extends StatelessWidget {
-  const _BreathingDisplay({required this.breathScale, required this.breathProgress, required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.title, required this.subtitle});
+  const _BreathingDisplay({required this.breathScale, required this.breathProgress, required this.running, required this.remainingSeconds, required this.liveBreathCount, required this.showLiveCount, required this.title, required this.subtitle});
 
   final Animation<double> breathScale;
   final Animation<double> breathProgress;
   final bool running;
   final int remainingSeconds;
   final int liveBreathCount;
+  final bool showLiveCount;
   final String title;
   final String subtitle;
 
@@ -714,8 +753,10 @@ class _BreathingDisplay extends StatelessWidget {
           Row(
             children: [
               _MetricPill(icon: Icons.timer_rounded, label: 'Timer', value: running ? '${remainingSeconds}s' : '30s'),
-              const SizedBox(width: 10),
-              _MetricPill(icon: Icons.air_rounded, label: 'Live count', value: '$liveBreathCount'),
+              if (showLiveCount) ...[
+                const SizedBox(width: 10),
+                _MetricPill(icon: Icons.air_rounded, label: 'Live count', value: '$liveBreathCount'),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -723,20 +764,18 @@ class _BreathingDisplay extends StatelessWidget {
             animation: Listenable.merge([breathScale, breathProgress]),
             builder: (context, _) {
               final t = running ? breathProgress.value : 0.25;
-              String asset;
-              if (t < 0.20) {
-                asset = 'assets/images/resp_chest_frame_1.png';
-              } else if (t < 0.45) {
-                asset = 'assets/images/resp_chest_frame_2.png';
-              } else if (t < 0.70) {
-                asset = 'assets/images/resp_chest_frame_3.png';
-              } else if (t < 0.88) {
-                asset = 'assets/images/resp_chest_frame_2.png';
-              } else {
-                asset = 'assets/images/resp_chest_frame_1.png';
-              }
-              return Transform.scale(
-                scale: running ? breathScale.value : 1.0,
+              const asset = 'assets/images/resp_chest_frame_2.png';
+
+              // Balloon chest effect (subtle): expand mostly on the Y axis,
+              // with a small X-axis expansion so it feels more natural.
+              // The underlying animation goes 1.0 -> 1.18; we dampen it.
+              final raw = running ? breathScale.value : 1.0;
+              final balloonY = 1.0 + (raw - 1.0) * 0.45;
+              final balloonX = 1.0 + (raw - 1.0) * 0.18;
+
+              return Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.diagonal3Values(balloonX, balloonY, 1.0),
                 child: Container(
                   width: 250,
                   decoration: BoxDecoration(
@@ -764,7 +803,7 @@ class _BreathingDisplay extends StatelessWidget {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
-                              running ? (t < 0.5 ? 'Inhale' : 'Exhale') : 'Animated chest demo',
+                              running ? (t < 0.5 ? 'Inhale' : 'Exhale') : 'Ballooning chest demo',
                               textAlign: TextAlign.center,
                               style: context.textStyles.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
                             ),
