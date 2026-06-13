@@ -354,6 +354,7 @@ class _StrokeAssessmentPageState extends State<StrokeAssessmentPage> with Ticker
     final bool twoCol = width >= 920;
 
     return Scaffold(
+      bottomNavigationBar: const EMSBottomNav(),
       body: CustomScrollView(
         slivers: [
           EMSVitalsHeader(
