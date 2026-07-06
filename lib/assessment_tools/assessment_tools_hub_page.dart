@@ -64,10 +64,10 @@ class AssessmentToolsHubPage extends StatelessWidget {
                     EMSStoryboard(
                       title: 'Primary flow',
                       items: const [
-                        EMSStoryboardItem(icon: Icons.visibility_rounded, label: 'General', caption: 'Sick or not sick?', accent: Color(0xFF22C55E)),
+                        EMSStoryboardItem(icon: Icons.shield_rounded, label: 'Scene', caption: 'Safe, PPE, resources', accent: Color(0xFF22C55E)),
+                        EMSStoryboardItem(icon: Icons.visibility_rounded, label: 'General', caption: 'Sick or not sick?', accent: Color(0xFF14B8A6)),
                         EMSStoryboardItem(icon: Icons.air_rounded, label: 'ABC', caption: 'Airway, breathing, circulation', accent: AppColors.emsBlue),
                         EMSStoryboardItem(icon: Icons.history_edu_rounded, label: 'History', caption: 'SAMPLE / OPQRST', accent: Color(0xFFF97316)),
-                        EMSStoryboardItem(icon: Icons.repeat_rounded, label: 'Reassess', caption: 'Trend the patient', accent: Color(0xFF7C3AED)),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -76,6 +76,13 @@ class AssessmentToolsHubPage extends StatelessWidget {
                       subtitle: 'Start a visual case instead of reading a long lesson.',
                       child: Column(
                         children: [
+                          _QuickActionTile(
+                            title: 'Scene Size-Up Simulator',
+                            subtitle: 'Scene safe/not safe, resources, PPE, NOI/MOI, patient count, and C-spine.',
+                            icon: Icons.shield_rounded,
+                            onTap: () => context.push(AppRoutes.sceneSizeUp),
+                          ),
+                          const SizedBox(height: 10),
                           _QuickActionTile(
                             title: 'ABC Assessment Simulator',
                             subtitle: 'Tap airway, breathing, circulation and score the first actions.',
