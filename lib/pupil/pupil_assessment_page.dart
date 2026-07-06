@@ -42,6 +42,7 @@ enum TrackingCase {
   heldToPatientRight,
   nystagmus,
   notTogetherOneLags,
+  notTracking,
 }
 
 extension on TrackingCase {
@@ -53,6 +54,7 @@ extension on TrackingCase {
     TrackingCase.heldToPatientRight => 'Both eyes held to the patient\'s right',
     TrackingCase.nystagmus => 'Nystagmus (visible small rapid shaking)',
     TrackingCase.notTogetherOneLags => 'Eyes do not move together / one lags',
+    TrackingCase.notTracking => 'Not tracking / unable to follow',
   };
 }
 
@@ -82,17 +84,19 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
   late final AnimationController _frame;
   AnimationController? _returnToCenter;
 
+  late final AnimationController _autoTracking;
+  bool _autoTrackingEnabled = false;
+
   late final AnimationController _penlightRight;
   late final AnimationController _penlightLeft;
 
   // Student inputs
-  String? _perlPick;
-  String? _rightSizePick;
+  String? _pearlEqualPick;
+  String? _trackingPick;
+  String? _rightRoundPick;
   String? _rightReactionPick;
-  String? _rightTrackingPick;
-  String? _leftSizePick;
+  String? _leftRoundPick;
   String? _leftReactionPick;
-  String? _leftTrackingPick;
 
   bool _graded = false;
   List<_GradeRow> _gradeRows = const [];
@@ -105,8 +109,16 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
       ..addListener(_onFrame)
       ..repeat();
 
-    _penlightRight = AnimationController(vsync: this);
-    _penlightLeft = AnimationController(vsync: this);
+    _autoTracking = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))
+      ..addListener(() {
+        if (!_autoTrackingEnabled) return;
+        // Smooth sweep: -85..+85 in patient-direction.
+        final v = sin(_autoTracking.value * 2 * pi) * 85;
+        _onTrackingChanged(v);
+      });
+
+    _penlightRight = AnimationController(vsync: this)..addListener(() => setState(() {}));
+    _penlightLeft = AnimationController(vsync: this)..addListener(() => setState(() {}));
 
     _newCase();
   }
@@ -116,6 +128,7 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
     _frame.removeListener(_onFrame);
     _frame.dispose();
     _returnToCenter?.dispose();
+    _autoTracking.dispose();
     _penlightRight.dispose();
     _penlightLeft.dispose();
     super.dispose();
@@ -165,6 +178,10 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
     ];
 
     setState(() {
+      _autoTrackingEnabled = false;
+      _autoTracking.stop();
+      _autoTracking.reset();
+
       _case = pupilCases[_rng.nextInt(pupilCases.length)];
       _trackingCase = TrackingCase.values[_rng.nextInt(TrackingCase.values.length)];
       _rightEyeLags = _rng.nextBool();
@@ -178,13 +195,12 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
         _ => 0,
       };
 
-      _perlPick = null;
-      _rightSizePick = null;
+      _pearlEqualPick = null;
+      _trackingPick = null;
+      _rightRoundPick = null;
       _rightReactionPick = null;
-      _rightTrackingPick = null;
-      _leftSizePick = null;
+      _leftRoundPick = null;
       _leftReactionPick = null;
-      _leftTrackingPick = null;
 
       _graded = false;
       _gradeRows = const [];
@@ -220,10 +236,8 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
                         'Right side and Left side are from the patient\'s point of view. The patient\'s right side appears on the left of your screen.',
                   ),
                   _InfoBullet(
-                    text:
-                        'The chart and the live pupils use the same scale so the displayed mm size matches the reference chart as closely as possible.',
+                    text: 'Use the penlight buttons to test reactivity.',
                   ),
-                  _InfoBullet(text: 'Use the penlight buttons to test reactivity.'),
                   _InfoBullet(text: 'Use the tracking slider to check whether the eyes move together.'),
                   _InfoBullet(text: 'The slider recenters when released, like returning your finger to the middle.'),
                   const SizedBox(height: AppSpacing.lg),
@@ -246,6 +260,18 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
         );
       },
     );
+  }
+
+  void _toggleAutoTracking() {
+    setState(() {
+      _autoTrackingEnabled = !_autoTrackingEnabled;
+      if (_autoTrackingEnabled) {
+        _autoTracking.repeat();
+      } else {
+        _autoTracking.stop();
+        _onTrackingEnd(_trackingTarget);
+      }
+    });
   }
 
   Future<void> _runPenlight({required bool isRightSide}) async {
@@ -317,6 +343,8 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
   }
 
   double _trackingForEye({required bool isRightSide}) {
+    if (_trackingCase == TrackingCase.notTracking) return 0;
+
     final base = _trackingCase == TrackingCase.notTogetherOneLags
         ? (isRightSide == _rightEyeLags ? _trackingLagCurrent : _trackingTarget)
         : _trackingTarget;
@@ -350,22 +378,29 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
       final expectedLeftReaction = _case.left.reaction.label;
       final expectedTracking = _trackingCase.label;
 
+      const expectedRound = 'Round';
+
       final mmR = _ratioToMm(_case.right.ratioPercent);
       final mmL = _ratioToMm(_case.left.ratioPercent);
-      final perlExpected = (mmR - mmL).abs() < 1.0 && _case.right.reaction.isReactive && _case.left.reaction.isReactive ? 'Yes' : 'No';
+      final pearlEqualExpected = (mmR - mmL).abs() < 1.0 ? 'Yes' : 'No';
 
       final rows = <_GradeRow>[
-        _GradeRow.section(section: 'Left side — actual', detail: 'size $expectedLeftSize (${mmL.toStringAsFixed(1)} mm), reaction $expectedLeftReaction, tracking $expectedTracking.'),
-        _GradeRow.pick(label: 'Size', pick: _leftSizePick, expected: expectedLeftSize),
-        _GradeRow.pick(label: 'Reaction', pick: _leftReactionPick, expected: expectedLeftReaction),
-        _GradeRow.pick(label: 'Tracking', pick: _leftTrackingPick, expected: expectedTracking),
+        _GradeRow.section(
+          section: 'Left side — actual',
+          detail: 'pupil ${mmL.toStringAsFixed(1)} mm, reaction $expectedLeftReaction, tracking $expectedTracking.',
+        ),
+        _GradeRow.pick(label: 'Round', pick: _leftRoundPick, expected: expectedRound),
+        _GradeRow.pick(label: 'Reactive to light', pick: _leftReactionPick, expected: expectedLeftReaction),
         _GradeRow.spacer(),
-        _GradeRow.section(section: 'Right side — actual', detail: 'size $expectedRightSize (${mmR.toStringAsFixed(1)} mm), reaction $expectedRightReaction, tracking $expectedTracking.'),
-        _GradeRow.pick(label: 'Size', pick: _rightSizePick, expected: expectedRightSize),
-        _GradeRow.pick(label: 'Reaction', pick: _rightReactionPick, expected: expectedRightReaction),
-        _GradeRow.pick(label: 'Tracking', pick: _rightTrackingPick, expected: expectedTracking),
+        _GradeRow.section(
+          section: 'Right side — actual',
+          detail: 'pupil ${mmR.toStringAsFixed(1)} mm, reaction $expectedRightReaction, tracking $expectedTracking.',
+        ),
+        _GradeRow.pick(label: 'Round', pick: _rightRoundPick, expected: expectedRound),
+        _GradeRow.pick(label: 'Reactive to light', pick: _rightReactionPick, expected: expectedRightReaction),
         _GradeRow.spacer(),
-        _GradeRow.perl(pick: _perlPick, expected: perlExpected),
+        _GradeRow.pick(label: 'Tracking', pick: _trackingPick, expected: expectedTracking),
+        _GradeRow.perl(pick: _pearlEqualPick, expected: pearlEqualExpected),
       ];
 
       final teaching = _buildTeachingText(
@@ -426,6 +461,9 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
       case TrackingCase.notTogetherOneLags:
         parts.add('Eyes not moving together may suggest internuclear ophthalmoplegia, cranial nerve palsy, orbital trauma, or muscle entrapment.');
         break;
+      case TrackingCase.notTracking:
+        parts.add('Not tracking / unable to follow may be seen with altered mental status, severe dizziness/vertigo, visual impairment, intoxication, or severe neurologic deficit.');
+        break;
       case TrackingCase.normal:
         break;
     }
@@ -452,162 +490,205 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
           child: EMSCentered(
             maxWidth: maxContentWidth,
             padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xxl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Penlight Pupil Size Chart', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-                              const SizedBox(height: AppSpacing.sm),
-                              Text(
-                                'Pinpoint ≈ 1–2 mm • Normal (room light) ≈ 3–4 mm • Dilated ≥ 6 mm',
-                                style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              const _PupilSizeChart(),
-                            ],
-                          ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Scale the simulated iris/pupil based on available width so it feels
+                // phone-friendly while keeping the chart + sim on the same mm scale.
+                final usableW = constraints.maxWidth;
+                final irisDiameterPx = (usableW * 0.26).clamp(120.0, 190.0);
+                final scale = _PupilScale(irisDiameterPx: irisDiameterPx);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Eyes Simulator', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              'Record findings (sides are the patient\'s). The patient\'s right side appears on the left of your screen.',
+                              style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      SizedBox(
+                                        width: double.infinity,
+                                        height: 46,
+                                        child: FilledButton(
+                                          onPressed: () => _runPenlight(isRightSide: true),
+                                          style: ButtonStyle(
+                                            splashFactory: NoSplash.splashFactory,
+                                            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                                          ),
+                                          child: const Text('💡 Penlight'),
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      _EyePanel(
+                                        scale: scale,
+                                        sideLabel: 'Right side',
+                                        mm: rightMm,
+                                        ratioPercent: rightRatio,
+                                        trackingValue: _trackingForEye(isRightSide: true),
+                                        nystagmusOffsetPx: _nystagmusOffset(),
+                                        penlightT: _penlightRight.value,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      SizedBox(
+                                        width: double.infinity,
+                                        height: 46,
+                                        child: FilledButton(
+                                          onPressed: () => _runPenlight(isRightSide: false),
+                                          style: ButtonStyle(
+                                            splashFactory: NoSplash.splashFactory,
+                                            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                                          ),
+                                          child: const Text('💡 Penlight'),
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      _EyePanel(
+                                        scale: scale,
+                                        sideLabel: 'Left side',
+                                        mm: leftMm,
+                                        ratioPercent: leftRatio,
+                                        trackingValue: _trackingForEye(isRightSide: false),
+                                        nystagmusOffsetPx: _nystagmusOffset(),
+                                        penlightT: _penlightLeft.value,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            Row(
+                              children: [
+                                Expanded(child: Text('Tracking', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w800))),
+                                const SizedBox(width: AppSpacing.sm),
+                                SizedBox(
+                                  height: 38,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _toggleAutoTracking,
+                                    style: ButtonStyle(
+                                      splashFactory: NoSplash.splashFactory,
+                                      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                                    ),
+                                    icon: Icon(_autoTrackingEnabled ? Icons.pause_circle_outline : Icons.play_circle_outline, color: cs.primary),
+                                    label: Text(_autoTrackingEnabled ? 'Stop' : 'Run', style: TextStyle(color: cs.onSurface)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Slider(
+                              value: -_trackingTarget,
+                              min: -100,
+                              max: 100,
+                              divisions: 200,
+                              label: (-_trackingTarget).toStringAsFixed(0),
+                              onChanged: _autoTrackingEnabled ? null : (v) => _onTrackingChanged(-v),
+                              onChangeEnd: _autoTrackingEnabled ? null : (v) => _onTrackingEnd(-v),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.md),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(AppSpacing.md),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Eyes Simulator', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                              Text('Document (PEARL)', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
                               const SizedBox(height: AppSpacing.sm),
-                              Text(
-                                'Record findings (sides are the patient\'s). The patient\'s right side appears on the left of your screen.',
-                                style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
+                              Text('Pick what you would chart for each eye.', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                              const SizedBox(height: AppSpacing.md),
+                              _DropdownString(
+                                label: 'Pupils equal?',
+                                value: _pearlEqualPick,
+                                items: const ['— choose —', 'Yes', 'No'],
+                                onChanged: (v) => setState(() => _pearlEqualPick = v),
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              _DropdownString(
+                                label: 'Tracking',
+                                value: _trackingPick,
+                                items: _DropdownString.trackingItems,
+                                onChanged: (v) => setState(() => _trackingPick = v),
                               ),
                               const SizedBox(height: AppSpacing.md),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Expanded(
-                                    child: _EyePanel(
-                                      sideLabel: 'Right side',
-                                      mm: rightMm,
-                                      ratioPercent: rightRatio,
-                                      trackingValue: _trackingForEye(isRightSide: true),
-                                      nystagmusOffsetPx: _nystagmusOffset(),
-                                      onPenlight: () => _runPenlight(isRightSide: true),
-                                      buttonText: '💡 Penlight — Right side',
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Patient RIGHT (screen left)',
+                                          style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                                        ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        _DropdownString(
+                                          label: 'Round?',
+                                          value: _rightRoundPick,
+                                          items: const ['— choose —', 'Round', 'Not round'],
+                                          onChanged: (v) => setState(() => _rightRoundPick = v),
+                                        ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        _DropdownString(
+                                          label: 'Reactive to light',
+                                          value: _rightReactionPick,
+                                          items: const ['— choose —', 'Normal', 'Sluggish', 'Non-reactive'],
+                                          onChanged: (v) => setState(() => _rightReactionPick = v),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                   const SizedBox(width: AppSpacing.md),
                                   Expanded(
-                                    child: _EyePanel(
-                                      sideLabel: 'Left side',
-                                      mm: leftMm,
-                                      ratioPercent: leftRatio,
-                                      trackingValue: _trackingForEye(isRightSide: false),
-                                      nystagmusOffsetPx: _nystagmusOffset(),
-                                      onPenlight: () => _runPenlight(isRightSide: false),
-                                      buttonText: '💡 Penlight — Left side',
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Patient LEFT (screen right)',
+                                          style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                                        ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        _DropdownString(
+                                          label: 'Round?',
+                                          value: _leftRoundPick,
+                                          items: const ['— choose —', 'Round', 'Not round'],
+                                          onChanged: (v) => setState(() => _leftRoundPick = v),
+                                        ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        _DropdownString(
+                                          label: 'Reactive to light',
+                                          value: _leftReactionPick,
+                                          items: const ['— choose —', 'Normal', 'Sluggish', 'Non-reactive'],
+                                          onChanged: (v) => setState(() => _leftReactionPick = v),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Tracking (follow examiner\'s finger): Left ⇄ Right', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                'Move the slider to test whether both eyes track together. When released, it returns to center.',
-                                style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              Slider(
-                                value: _trackingTarget,
-                                min: -100,
-                                max: 100,
-                                divisions: 200,
-                                label: _trackingTarget.toStringAsFixed(0),
-                                onChanged: _onTrackingChanged,
-                                onChangeEnd: _onTrackingEnd,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Record Findings', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-                              const SizedBox(height: AppSpacing.sm),
-                              Text('Record findings (sides are the patient\'s)', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-                              const SizedBox(height: AppSpacing.md),
-                              _DropdownString(
-                                label: 'PERL',
-                                value: _perlPick,
-                                items: const ['— choose —', 'Yes', 'No'],
-                                onChanged: (v) => setState(() => _perlPick = v),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              Text('Right side findings', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
-                              const SizedBox(height: AppSpacing.sm),
-                              _DropdownString(
-                                label: 'Right side — Size',
-                                value: _rightSizePick,
-                                items: const ['— choose —', 'Pinpoint', 'Normal', 'Dilated'],
-                                onChanged: (v) => setState(() => _rightSizePick = v),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              _DropdownString(
-                                label: 'Right side — Reaction',
-                                value: _rightReactionPick,
-                                items: const ['— choose —', 'Normal', 'Sluggish', 'Non-reactive'],
-                                onChanged: (v) => setState(() => _rightReactionPick = v),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              _DropdownString(
-                                label: 'Right side — Tracking',
-                                value: _rightTrackingPick,
-                                items: _DropdownString.trackingItems,
-                                onChanged: (v) => setState(() => _rightTrackingPick = v),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              Text('Left side findings', style: context.textStyles.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
-                              const SizedBox(height: AppSpacing.sm),
-                              _DropdownString(
-                                label: 'Left side — Size',
-                                value: _leftSizePick,
-                                items: const ['— choose —', 'Pinpoint', 'Normal', 'Dilated'],
-                                onChanged: (v) => setState(() => _leftSizePick = v),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              _DropdownString(
-                                label: 'Left side — Reaction',
-                                value: _leftReactionPick,
-                                items: const ['— choose —', 'Normal', 'Sluggish', 'Non-reactive'],
-                                onChanged: (v) => setState(() => _leftReactionPick = v),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              _DropdownString(
-                                label: 'Left side — Tracking',
-                                value: _leftTrackingPick,
-                                items: _DropdownString.trackingItems,
-                                onChanged: (v) => setState(() => _leftTrackingPick = v),
                               ),
                               const SizedBox(height: AppSpacing.md),
                               Row(
@@ -685,7 +766,9 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
                           ),
                         ),
                       ],
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -694,61 +777,29 @@ class _PupilAssessmentPageState extends State<PupilAssessmentPage> with TickerPr
   }
 }
 
-class _PupilSizeChart extends StatelessWidget {
-  const _PupilSizeChart();
-
-  // Keep this aligned with the eye painter so mm feels consistent.
-  static const double irisDiameterPx = 160;
-  static const double irisMm = 11.5;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    const mms = [1, 2, 3, 4, 5, 6, 7];
-    return Wrap(
-      spacing: AppSpacing.md,
-      runSpacing: AppSpacing.md,
-      children: [
-        for (final mm in mms)
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: (mm / irisMm) * irisDiameterPx,
-                height: (mm / irisMm) * irisDiameterPx,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: cs.shadow.withValues(alpha: 0.10), blurRadius: 14, offset: const Offset(0, 6))],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text('$mm mm', style: context.textStyles.labelMedium?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w700)),
-            ],
-          ),
-      ],
-    );
-  }
+class _PupilScale {
+  const _PupilScale({required this.irisDiameterPx});
+  final double irisDiameterPx;
 }
 
 class _EyePanel extends StatelessWidget {
   const _EyePanel({
+    required this.scale,
     required this.sideLabel,
     required this.mm,
     required this.ratioPercent,
     required this.trackingValue,
     required this.nystagmusOffsetPx,
-    required this.onPenlight,
-    required this.buttonText,
+    required this.penlightT,
   });
 
+  final _PupilScale scale;
   final String sideLabel;
   final double mm;
   final double ratioPercent;
   final double trackingValue;
   final double nystagmusOffsetPx;
-  final VoidCallback onPenlight;
-  final String buttonText;
+  final double penlightT;
 
   @override
   Widget build(BuildContext context) {
@@ -795,29 +846,13 @@ class _EyePanel extends StatelessWidget {
                 ),
                 child: CustomPaint(
                   painter: _EyePainter(
+                    scale: scale,
                     ratioPercent: ratioPercent,
                     trackingValue: trackingValue,
                     nystagmusOffsetPx: nystagmusOffsetPx,
+                    penlightT: penlightT,
                   ),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: FilledButton(
-              onPressed: onPenlight,
-              style: ButtonStyle(
-                splashFactory: NoSplash.splashFactory,
-                shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-              ),
-              child: Text(
-                buttonText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
               ),
             ),
           ),
@@ -828,14 +863,15 @@ class _EyePanel extends StatelessWidget {
 }
 
 class _EyePainter extends CustomPainter {
-  const _EyePainter({required this.ratioPercent, required this.trackingValue, required this.nystagmusOffsetPx});
+  const _EyePainter({required this.scale, required this.ratioPercent, required this.trackingValue, required this.nystagmusOffsetPx, required this.penlightT});
 
+  final _PupilScale scale;
   final double ratioPercent;
   final double trackingValue;
   final double nystagmusOffsetPx;
+  final double penlightT;
 
-  static const double irisDiameterPx = _PupilSizeChart.irisDiameterPx;
-  static const double irisMm = _PupilSizeChart.irisMm;
+  static const double irisMm = 11.5;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -859,9 +895,31 @@ class _EyePainter extends CustomPainter {
       ..strokeWidth = 2;
     canvas.drawRRect(eyeRRect, outline);
 
+    // Penlight effect overlay (simple "flashlight" spot).
+    // This makes the button feel like a real light is being shined into the eye.
+    if (penlightT > 0.001) {
+      final t = Curves.easeInOutCubic.transform(penlightT);
+      final lightCenter = Offset(eyeRect.left + eyeRect.width * 0.18, eyeRect.top + eyeRect.height * 0.35);
+      final lightPaint = Paint()
+        ..blendMode = BlendMode.screen
+        ..shader = RadialGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.55 * t),
+            Colors.white.withValues(alpha: 0.18 * t),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.55, 1.0],
+        ).createShader(Rect.fromCircle(center: lightCenter, radius: eyeRect.shortestSide * 0.85));
+
+      canvas.save();
+      canvas.clipRRect(eyeRRect);
+      canvas.drawRect(eyeRect, lightPaint);
+      canvas.restore();
+    }
+
     // Iris & pupil
-    final irisR = min(irisDiameterPx / 2, min(size.width, size.height) * 0.30);
-    final pupilR = (ratioPercent / 100) * (irisDiameterPx / 2);
+    final irisR = min(scale.irisDiameterPx / 2, min(size.width, size.height) * 0.30);
+    final pupilR = (ratioPercent / 100) * irisR;
 
     // Tracking mapping:
     // trackingValue is in patient-direction: -100=patient-left, +100=patient-right.
@@ -917,7 +975,11 @@ class _EyePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _EyePainter oldDelegate) {
-    return oldDelegate.ratioPercent != ratioPercent || oldDelegate.trackingValue != trackingValue || oldDelegate.nystagmusOffsetPx != nystagmusOffsetPx;
+    return oldDelegate.scale.irisDiameterPx != scale.irisDiameterPx ||
+        oldDelegate.ratioPercent != ratioPercent ||
+        oldDelegate.trackingValue != trackingValue ||
+        oldDelegate.nystagmusOffsetPx != nystagmusOffsetPx ||
+        oldDelegate.penlightT != penlightT;
   }
 }
 
@@ -938,6 +1000,7 @@ class _DropdownString extends StatelessWidget {
     'Both eyes held to the patient\'s right',
     'Nystagmus (visible small rapid shaking)',
     'Eyes do not move together / one lags',
+    'Not tracking / unable to follow',
   ];
 
   @override
@@ -1037,8 +1100,10 @@ class _GradeRowWidget extends StatelessWidget {
             Expanded(
               child: Text(
                 missing
-                    ? 'PERL: no selection was made.'
-                    : (ok ? 'PERL: You chose $pick. ✅ Correct.' : 'PERL: You chose $pick. ❌ Expected: $expected.'),
+                    ? 'Pupils equal: no selection was made.'
+                    : (ok
+                        ? 'Pupils equal: You chose $pick. ✅ Correct.'
+                        : 'Pupils equal: You chose $pick. ❌ Expected: $expected.'),
                 style: context.textStyles.bodyMedium?.copyWith(height: 1.4),
               ),
             ),

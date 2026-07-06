@@ -28,9 +28,6 @@ class VitalsHomePage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const _FreeVersionBadge(),
-                      const SizedBox(height: 16),
-
                       _HomeActionCard(
                         icon: Icons.monitor_heart,
                         accent: AppColors.emsBlue,
@@ -179,123 +176,10 @@ class _HomeHeader extends StatelessWidget {
                       height: 1.4,
                     ),
               ),
-              const SizedBox(height: 18),
-              const _HeroStatsRow(),
+              const SizedBox(height: 8),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _HeroStatsRow extends StatelessWidget {
-  const _HeroStatsRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: _HeroStat(
-            label: 'Free',
-            value: 'Adult',
-            icon: Icons.person,
-          ),
-        ),
-        SizedBox(width: 10),
-        Expanded(
-          child: _HeroStat(
-            label: 'Focus',
-            value: 'Normal?',
-            icon: Icons.check_circle,
-          ),
-        ),
-        SizedBox(width: 10),
-        Expanded(
-          child: _HeroStat(
-            label: 'Level',
-            value: 'EMT',
-            icon: Icons.school,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HeroStat extends StatelessWidget {
-  const _HeroStat({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.14),
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: Colors.white, size: 20),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                ),
-          ),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.70),
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FreeVersionBadge extends StatelessWidget {
-  const _FreeVersionBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFDCFCE7),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF86EFAC)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.lock_open, color: Color(0xFF15803D)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Free version: adult vitals and basic EMT assessment tools.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF14532D),
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-          ),
-        ],
       ),
     );
   }

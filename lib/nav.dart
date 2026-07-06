@@ -1,8 +1,10 @@
 import 'package:emscode_sim_vitals/blood_pressure/blood_pressure_simulator_page.dart';
+import 'package:emscode_sim_vitals/blood_pressure/bp_tutorial_method.dart';
 import 'package:emscode_sim_vitals/breath/breath_sound_simulator_page.dart';
 import 'package:emscode_sim_vitals/burn/rule_of_nines_page.dart';
 import 'package:emscode_sim_vitals/pupil/pupil_assessment_page.dart';
 import 'package:emscode_sim_vitals/pulse/pulse_test_page.dart';
+import 'package:emscode_sim_vitals/pulse/pulse_diagram_page.dart';
 import 'package:emscode_sim_vitals/respirations/respirations_test_page.dart';
 import 'package:emscode_sim_vitals/skin/skin_vital_page.dart';
 import 'package:emscode_sim_vitals/stroke/stroke_assessment_page.dart';
@@ -161,18 +163,28 @@ class AppRouter {
         name: 'bloodPressure',
         pageBuilder: (context, state) {
           final flow = state.uri.queryParameters['flow'];
+          final method = state.uri.queryParameters['method'];
           final initialMode = switch (flow) {
             'tutorial' => BpStartMode.tutorial,
             'practice' => BpStartMode.practice,
             _ => BpStartMode.chooser,
           };
-          return MaterialPage(child: BloodPressureSimulatorPage(initialMode: initialMode));
+          final tutorialMethod = switch (method) {
+            'palpation' => BpTutorialMethod.palpation,
+            _ => BpTutorialMethod.auscultation,
+          };
+          return MaterialPage(child: BloodPressureSimulatorPage(initialMode: initialMode, tutorialMethod: tutorialMethod));
         },
       ),
       GoRoute(
         path: AppRoutes.pulseTest,
         name: 'pulseTest',
         pageBuilder: (context, state) => const MaterialPage(child: PulseTestPage()),
+      ),
+      GoRoute(
+        path: AppRoutes.pulseDiagram,
+        name: 'pulseDiagram',
+        pageBuilder: (context, state) => const MaterialPage(child: PulseDiagramPage()),
       ),
       GoRoute(
         path: AppRoutes.respirationsTest,
@@ -233,6 +245,7 @@ class AppRoutes {
   static const String instructor = '/instructor';
   static const String settings = '/settings';
   static const String bloodPressure = '/blood-pressure';
+  static const String pulseDiagram = '/pulse-diagram';
   static const String pulseTest = '/pulse-test';
   static const String respirationsTest = '/respirations-test';
   static const String strokeAssessment = '/stroke-assessment';

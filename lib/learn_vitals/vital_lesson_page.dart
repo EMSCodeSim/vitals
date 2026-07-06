@@ -183,7 +183,7 @@ class _VitalLessonPageState extends State<VitalLessonPage> {
           width: double.infinity,
           height: 52,
           child: FilledButton.icon(
-            onPressed: () => context.push(AppRoutes.pulseTest),
+            onPressed: () => context.push(AppRoutes.pulseDiagram),
             style: ButtonStyle(splashFactory: NoSplash.splashFactory, shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
             icon: const Icon(Icons.play_arrow, color: Colors.white),
             label: const Text('Open Pulse Test', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
@@ -296,7 +296,7 @@ class _VitalVisualSnapshot extends StatelessWidget {
 
   String? _routeFor(VitalId vital) => switch (vital) {
     VitalId.bloodPressure => AppRoutes.bloodPressure,
-    VitalId.pulseRate => AppRoutes.pulseTest,
+    VitalId.pulseRate => AppRoutes.pulseDiagram,
     VitalId.respiratoryRate => AppRoutes.respirationsTest,
     VitalId.pupils => AppRoutes.pupilAssessment,
     _ => null,

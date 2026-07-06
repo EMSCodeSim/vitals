@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/blood_pressure/bp_gauge.dart';
+import 'package:emscode_sim_vitals/blood_pressure/bp_tutorial_method.dart';
 import 'package:emscode_sim_vitals/nav.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
 import 'package:emscode_sim_vitals/theme.dart';
@@ -10,7 +11,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 class BpLearnWalkthroughPage extends StatefulWidget {
-  const BpLearnWalkthroughPage({super.key});
+  const BpLearnWalkthroughPage({super.key, this.method = BpTutorialMethod.auscultation});
+
+  final BpTutorialMethod method;
 
   @override
   State<BpLearnWalkthroughPage> createState() => _BpLearnWalkthroughPageState();
@@ -26,6 +29,7 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   Timer? _autoAdvanceTimer;
   double _pressure = 0;
   _VideoStage _stage = _VideoStage.ready;
+  _PalpStage _palpStage = _PalpStage.ready;
   bool _showPlacementPhoto = true;
   int _questionIndex = 0;
   final List<int?> _answers = [null, null];
@@ -40,6 +44,8 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
   bool get _highlightTarget => _stage == _VideoStage.targetPopup || _stage == _VideoStage.inflate;
   bool get _highlightSys => _stage == _VideoStage.systolicPopup;
   bool get _highlightDia => _stage == _VideoStage.diastolicPopup;
+
+  bool get _palpPulsePresent => _pressure <= _sys;
 
   _PopUpData get _popUpData => switch (_stage) {
         _VideoStage.ready => const _PopUpData(
@@ -259,6 +265,11 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.method == BpTutorialMethod.palpation) {
+      if (_showPlacementPhoto) return _buildPalpationIntroPage(context);
+      return _buildPalpationDemoPage(context);
+    }
+
     if (_showPlacementPhoto) return _buildPlacementPhotoPage(context);
     return _buildVideoDemoPage(context);
   }
@@ -356,7 +367,8 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
       bodySlivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+            // Keep the key “how to use” instructions visible on phones without scrolling.
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 760),
@@ -473,6 +485,355 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
     );
   }
 
+  // -------------------------
+  // Palpation demo flow
+  // -------------------------
+
+  void _startPalpVideo() {
+    _cancelTimers();
+    setState(() {
+      _showPlacementPhoto = false;
+      _pressure = 0;
+      _palpStage = _PalpStage.inflate;
+      _questionIndex = 0;
+      _answers[0] = null;
+      _answers[1] = null;
+    });
+    _beginPalpInflation(resetPressure: true);
+  }
+
+  void _beginPalpInflation({bool resetPressure = false}) {
+    if (!mounted) return;
+    _cancelTimers();
+    setState(() {
+      _palpStage = _PalpStage.inflate;
+      if (resetPressure) _pressure = 0;
+    });
+    _timer = Timer.periodic(const Duration(milliseconds: 45), (_) {
+      if (!mounted) return;
+      final next = (_pressure + 2.8).clamp(0.0, _targetInflation);
+      setState(() => _pressure = next);
+      if (_pressure >= _targetInflation) {
+        _cancelTimers();
+        setState(() {
+          _pressure = _targetInflation;
+          _palpStage = _PalpStage.targetPopup;
+        });
+        _scheduleNext(const Duration(seconds: 2), () => _beginPalpReleaseToReturn());
+      }
+    });
+  }
+
+  void _beginPalpReleaseToReturn() {
+    if (!mounted) return;
+    _cancelTimers();
+    setState(() => _palpStage = _PalpStage.releaseToReturn);
+    _timer = Timer.periodic(const Duration(milliseconds: 55), (_) {
+      if (!mounted) return;
+      final next = (_pressure - 0.72).clamp(0.0, _targetInflation);
+      setState(() => _pressure = next);
+      if (_pressure <= _sys) {
+        _cancelTimers();
+        setState(() {
+          _pressure = _sys.toDouble();
+          _palpStage = _PalpStage.systolicPopup;
+        });
+        _scheduleNext(const Duration(seconds: 3), () {
+          if (!mounted) return;
+          _cancelTimers();
+          setState(() => _palpStage = _PalpStage.finalReading);
+        });
+      }
+    });
+  }
+
+  void _pauseResumePalp() {
+    if (_palpStage == _PalpStage.ready || _palpStage == _PalpStage.quickCheck) return;
+    if (_timer?.isActive == true || _autoAdvanceTimer?.isActive == true) {
+      _cancelTimers();
+      setState(() {});
+      return;
+    }
+
+    switch (_palpStage) {
+      case _PalpStage.inflate:
+        _beginPalpInflation();
+        break;
+      case _PalpStage.targetPopup:
+        _scheduleNext(const Duration(milliseconds: 800), () => _beginPalpReleaseToReturn());
+        break;
+      case _PalpStage.releaseToReturn:
+        _beginPalpReleaseToReturn();
+        break;
+      case _PalpStage.systolicPopup:
+        _scheduleNext(const Duration(milliseconds: 800), () {
+          if (mounted) setState(() => _palpStage = _PalpStage.finalReading);
+        });
+        break;
+      case _PalpStage.finalReading:
+      case _PalpStage.ready:
+      case _PalpStage.quickCheck:
+        break;
+    }
+    setState(() {});
+  }
+
+  void _goToPalpQuickCheck() {
+    _cancelTimers();
+    setState(() {
+      _showPlacementPhoto = false;
+      _pressure = _sys.toDouble();
+      _palpStage = _PalpStage.quickCheck;
+      _questionIndex = 0;
+      _answers[0] = null;
+      _answers[1] = null;
+    });
+  }
+
+  void _replayPalp() => _startPalpVideo();
+
+  Widget _buildPalpationIntroPage(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return EMSVitalsScaffold(
+      title: 'BP Palpation Demo',
+      subtitle: 'Estimate systolic using radial pulse return.',
+      showModePill: false,
+      onBackPressed: () => context.go(AppRoutes.bloodPressure),
+      onInfoPressed: _showTeachingSheet,
+      bodySlivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: cs.surfaceContainerHighest.withValues(alpha: 0.32),
+                                borderRadius: BorderRadius.circular(AppRadius.lg),
+                                border: Border.all(color: cs.outline.withValues(alpha: 0.14)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('What you’re learning', style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                                  const SizedBox(height: 10),
+                                  const _MiniTeachingPoint(icon: Icons.back_hand, text: 'Find the radial pulse with your fingers.'),
+                                  const _MiniTeachingPoint(icon: Icons.arrow_upward, text: 'Inflate until the radial pulse disappears.'),
+                                  const _MiniTeachingPoint(icon: Icons.south, text: 'Deflate slowly until the pulse returns.'),
+                                  const _MiniTeachingPoint(icon: Icons.edit, text: 'That pressure = palpated systolic estimate.'),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              height: 54,
+                              child: FilledButton.icon(
+                                onPressed: _startPalpVideo,
+                                icon: const Icon(Icons.play_arrow, color: Colors.white),
+                                label: const Text('Play Palpation Demo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _showTeachingSheet,
+                            icon: const Icon(Icons.info_outline),
+                            label: const Text('More Info'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _goToPalpQuickCheck,
+                            icon: const Icon(Icons.quiz_outlined),
+                            label: const Text('Quiz'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPalpationDemoPage(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    final popUp = switch (_palpStage) {
+      _PalpStage.ready => const _PopUpData(icon: Icons.play_circle_outline, title: 'Ready', message: 'We’ll estimate systolic by pulse return.', color: AppColors.emsBlue),
+      _PalpStage.inflate => const _PopUpData(icon: Icons.arrow_upward, title: 'Inflate', message: 'Pump until the pulse disappears.', color: AppColors.emsBlue),
+      _PalpStage.targetPopup => const _PopUpData(icon: Icons.flag, title: 'Above systolic', message: 'Pulse should be absent above SYS.', color: Colors.orange),
+      _PalpStage.releaseToReturn => const _PopUpData(icon: Icons.south, title: 'Deflate slowly', message: 'Watch for pulse return.', color: AppColors.emsBlue),
+      _PalpStage.systolicPopup => const _PopUpData(icon: Icons.favorite, title: 'Pulse returns = 118', message: 'Record this as palpated systolic.', color: Colors.green),
+      _PalpStage.finalReading => const _PopUpData(icon: Icons.check_circle, title: 'Palpated SYS ≈ 118', message: 'Palpation gives an estimate of systolic only.', color: Colors.green),
+      _PalpStage.quickCheck => const _PopUpData(icon: Icons.quiz_outlined, title: 'Quick check', message: 'Two questions, then practice it yourself.', color: AppColors.emsBlue),
+    };
+
+    final stageForProgress = switch (_palpStage) {
+      _PalpStage.ready => _VideoStage.ready,
+      _PalpStage.inflate => _VideoStage.inflate,
+      _PalpStage.targetPopup => _VideoStage.targetPopup,
+      _PalpStage.releaseToReturn => _VideoStage.releaseToSys,
+      _PalpStage.systolicPopup => _VideoStage.systolicPopup,
+      _PalpStage.finalReading => _VideoStage.finalReading,
+      _PalpStage.quickCheck => _VideoStage.quickCheck,
+    };
+
+    final highlightTarget = _palpStage == _PalpStage.targetPopup || _palpStage == _PalpStage.inflate;
+    final highlightSys = _palpStage == _PalpStage.systolicPopup;
+
+    return EMSVitalsScaffold(
+      title: 'BP Palpation Demo',
+      subtitle: 'Radial pulse return → systolic estimate.',
+      showModePill: false,
+      onBackPressed: () => setState(() {
+        _cancelTimers();
+        _showPlacementPhoto = true;
+        _palpStage = _PalpStage.ready;
+        _pressure = 0;
+      }),
+      onInfoPressed: _showTeachingSheet,
+      bodySlivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _VideoProgress(stage: stageForProgress),
+                            const SizedBox(height: 12),
+                            _BpSimulatorPalpVideo(
+                              pressure: _pressure,
+                              pulsePresent: _palpPulsePresent,
+                              highlightTarget: highlightTarget,
+                              highlightSys: highlightSys,
+                              popUp: popUp,
+                            ),
+                            if (_palpStage == _PalpStage.quickCheck) ...[
+                              const SizedBox(height: 12),
+                              _QuickCheckCard(
+                                questionIndex: _questionIndex,
+                                selectedAnswer: _answers[_questionIndex],
+                                onSelect: _selectAnswer,
+                                onContinue: _answers[_questionIndex] == null ? null : _nextQuestionOrFinish,
+                                questions: _PalpQuiz.questions,
+                              ),
+                            ],
+                            if (_palpStage == _PalpStage.finalReading) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                                  border: Border.all(color: Colors.green.withValues(alpha: 0.32)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Result', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900, color: Colors.green.shade800)),
+                                          const SizedBox(height: 4),
+                                          Text('Palpated SYS ≈ 118', style: context.textStyles.headlineSmall?.copyWith(fontWeight: FontWeight.w900, color: cs.onSurface)),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(999)),
+                                      child: const Row(
+                                        children: [
+                                          Icon(Icons.back_hand, color: Colors.white),
+                                          SizedBox(width: 6),
+                                          Text('Palpation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 14),
+                            _VideoControls(
+                              stage: stageForProgress,
+                              isPlaying: _isPlaying,
+                              onPlay: _palpStage == _PalpStage.ready ? _startPalpVideo : _pauseResumePalp,
+                              onQuiz: _goToPalpQuickCheck,
+                              onReplay: _replayPalp,
+                              onPractice: () {
+                                context.read<AppState>().setMode(TrainingMode.practice);
+                                context.go('${AppRoutes.bloodPressure}?flow=practice');
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _showTeachingSheet,
+                            icon: const Icon(Icons.info_outline),
+                            label: const Text('More Info'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _goToPalpQuickCheck,
+                            icon: const Icon(Icons.quiz_outlined),
+                            label: const Text('Quiz'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showTeachingSheet() {
     showModalBottomSheet<void>(
       context: context,
@@ -528,6 +889,8 @@ class _BpLearnWalkthroughPageState extends State<BpLearnWalkthroughPage> {
 }
 
 enum _VideoStage { ready, inflate, targetPopup, releaseToSys, systolicPopup, releaseToDia, diastolicPopup, finalReading, quickCheck }
+
+enum _PalpStage { ready, inflate, targetPopup, releaseToReturn, systolicPopup, finalReading, quickCheck }
 
 class _PopUpData {
   const _PopUpData({required this.icon, required this.title, required this.message, required this.color});
@@ -622,8 +985,6 @@ class _BpSimulatorVideo extends StatelessWidget {
                       highlightDia: highlightDia,
                     ),
                     const SizedBox(height: 12),
-                    _DemoToolStrip(active: showBeats, pressure: pressure),
-                    const SizedBox(height: 12),
                     _CheckpointPopup(popUp: popUp),
                   ],
                 )
@@ -642,13 +1003,7 @@ class _BpSimulatorVideo extends StatelessWidget {
                     const SizedBox(width: 16),
                     Expanded(
                       flex: 5,
-                      child: Column(
-                        children: [
-                          _DemoToolStrip(active: showBeats, pressure: pressure),
-                          const SizedBox(height: 12),
-                          _CheckpointPopup(popUp: popUp),
-                        ],
-                      ),
+                      child: _CheckpointPopup(popUp: popUp),
                     ),
                   ],
                 ),
@@ -658,93 +1013,92 @@ class _BpSimulatorVideo extends StatelessWidget {
   }
 }
 
-class _DemoToolStrip extends StatelessWidget {
-  const _DemoToolStrip({required this.active, required this.pressure});
-  final bool active;
+class _BpSimulatorPalpVideo extends StatelessWidget {
+  const _BpSimulatorPalpVideo({required this.pressure, required this.pulsePresent, required this.highlightTarget, required this.highlightSys, required this.popUp});
+
   final double pressure;
+  final bool pulsePresent;
+  final bool highlightTarget;
+  final bool highlightSys;
+  final _PopUpData popUp;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.55)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _DemoToolIcon(
-                  icon: Icons.air,
-                  label: 'Pump',
-                  sublabel: 'Inflate cuff',
-                  color: AppColors.emsBlue,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _DemoToolIcon(
-                  icon: Icons.south,
-                  label: 'Release',
-                  sublabel: 'Deflate slowly',
-                  color: pressure > 0 ? Colors.green : cs.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: active ? Colors.green.withValues(alpha: 0.12) : AppColors.emsBlue.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 520;
+        final left = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _SimGaugePanel(
+              pressure: pressure,
+              showBeats: false,
+              highlightTarget: highlightTarget,
+              highlightSys: highlightSys,
+              highlightDia: false,
             ),
-            child: Row(
-              children: [
-                Icon(active ? Icons.graphic_eq : Icons.hearing, color: active ? Colors.green : AppColors.emsBlue),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    active ? 'Korotkoff sounds playing' : 'Listen for Korotkoff sounds',
-                    style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 10),
+            _PalpPulseIndicator(isPresent: pulsePresent),
+          ],
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [const Color(0xFF0E253B), const Color(0xFF143B5C), cs.surface],
+              stops: const [0, 0.56, 1],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            border: Border.all(color: cs.outline.withValues(alpha: 0.14)),
           ),
-        ],
-      ),
+          child: compact
+              ? Column(
+                  children: [
+                    left,
+                    const SizedBox(height: 12),
+                    _CheckpointPopup(popUp: popUp),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(flex: 5, child: left),
+                    const SizedBox(width: 16),
+                    Expanded(flex: 5, child: _CheckpointPopup(popUp: popUp)),
+                  ],
+                ),
+        );
+      },
     );
   }
 }
 
-class _DemoToolIcon extends StatelessWidget {
-  const _DemoToolIcon({required this.icon, required this.label, required this.sublabel, required this.color});
-  final IconData icon;
-  final String label;
-  final String sublabel;
-  final Color color;
+class _PalpPulseIndicator extends StatelessWidget {
+  const _PalpPulseIndicator({required this.isPresent});
+  final bool isPresent;
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = isPresent ? Colors.green : AppColors.danger;
     return Container(
-      padding: const EdgeInsets.all(12),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Icon(icon, color: color, size: 30),
-          const SizedBox(height: 6),
-          Text(label, style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900)),
-          Text(sublabel, textAlign: TextAlign.center, style: context.textStyles.labelSmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          Icon(isPresent ? Icons.favorite : Icons.heart_broken, color: color),
+          const SizedBox(width: 10),
+          Expanded(child: Text(isPresent ? 'Radial pulse present' : 'Radial pulse absent', style: context.textStyles.labelLarge?.copyWith(fontWeight: FontWeight.w900))),
+          Text('Palpation', style: context.textStyles.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
         ],
       ),
     );
@@ -974,30 +1328,16 @@ class _VideoControls extends StatelessWidget {
 }
 
 class _QuickCheckCard extends StatelessWidget {
-  const _QuickCheckCard({required this.questionIndex, required this.selectedAnswer, required this.onSelect, required this.onContinue});
+  const _QuickCheckCard({required this.questionIndex, required this.selectedAnswer, required this.onSelect, required this.onContinue, this.questions = _AuscultationQuiz.questions});
   final int questionIndex;
   final int? selectedAnswer;
   final ValueChanged<int> onSelect;
   final VoidCallback? onContinue;
-
-  static const _questions = [
-    _QuizQuestion(
-      text: 'First sound heard?',
-      options: ['Systolic / top number', 'Diastolic / bottom number', 'Respiratory rate'],
-      correctIndex: 0,
-      explanation: 'First clear Korotkoff sound = systolic.',
-    ),
-    _QuizQuestion(
-      text: 'Sounds disappear?',
-      options: ['Systolic', 'Diastolic / bottom number', 'Pulse rate'],
-      correctIndex: 1,
-      explanation: 'When the sounds disappear, record diastolic.',
-    ),
-  ];
+  final List<_QuizQuestion> questions;
 
   @override
   Widget build(BuildContext context) {
-    final q = _questions[questionIndex];
+    final q = questions[questionIndex];
     final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
@@ -1107,4 +1447,38 @@ class _QuizQuestion {
   final List<String> options;
   final int correctIndex;
   final String explanation;
+}
+
+class _AuscultationQuiz {
+  static const questions = [
+    _QuizQuestion(
+      text: 'First sound heard?',
+      options: ['Systolic / top number', 'Diastolic / bottom number', 'Respiratory rate'],
+      correctIndex: 0,
+      explanation: 'First clear Korotkoff sound = systolic.',
+    ),
+    _QuizQuestion(
+      text: 'Sounds disappear?',
+      options: ['Systolic', 'Diastolic / bottom number', 'Pulse rate'],
+      correctIndex: 1,
+      explanation: 'When the sounds disappear, record diastolic.',
+    ),
+  ];
+}
+
+class _PalpQuiz {
+  static const questions = [
+    _QuizQuestion(
+      text: 'Pulse returns at…',
+      options: ['Diastolic', 'Systolic (palpated estimate)', 'Heart rate'],
+      correctIndex: 1,
+      explanation: 'In palpation, record the cuff pressure where the radial pulse returns as systolic.',
+    ),
+    _QuizQuestion(
+      text: 'Palpation gives you…',
+      options: ['Systolic only', 'Diastolic only', 'Both SYS and DIA'],
+      correctIndex: 0,
+      explanation: 'Palpation typically estimates systolic only. Use auscultation to obtain diastolic when possible.',
+    ),
+  ];
 }

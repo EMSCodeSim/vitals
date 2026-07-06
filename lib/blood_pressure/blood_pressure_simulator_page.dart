@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:emscode_sim_vitals/blood_pressure/bp_beep_player.dart';
 import 'package:emscode_sim_vitals/blood_pressure/bp_gauge.dart';
 import 'package:emscode_sim_vitals/blood_pressure/bp_learn_walkthrough_page.dart';
+import 'package:emscode_sim_vitals/blood_pressure/bp_tutorial_method.dart';
 import 'package:emscode_sim_vitals/app/app_state.dart';
 import 'package:emscode_sim_vitals/dev/dev_flags.dart';
 import 'package:emscode_sim_vitals/shared/ems_vitals_shell.dart';
@@ -20,9 +21,10 @@ import 'package:emscode_sim_vitals/nav.dart';
 enum BpStartMode { chooser, tutorial, practice }
 
 class BloodPressureSimulatorPage extends StatefulWidget {
-  const BloodPressureSimulatorPage({super.key, this.initialMode = BpStartMode.chooser});
+  const BloodPressureSimulatorPage({super.key, this.initialMode = BpStartMode.chooser, this.tutorialMethod = BpTutorialMethod.auscultation});
 
   final BpStartMode initialMode;
+  final BpTutorialMethod tutorialMethod;
 
   @override
   State<BloodPressureSimulatorPage> createState() => _BloodPressureSimulatorPageState();
@@ -589,7 +591,7 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
   @override
   Widget build(BuildContext context) {
     if (widget.initialMode == BpStartMode.tutorial) {
-      return const BpLearnWalkthroughPage();
+      return BpLearnWalkthroughPage(method: widget.tutorialMethod);
     }
     if (widget.initialMode == BpStartMode.chooser) {
       return _buildModeChooser(context);
@@ -622,12 +624,6 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        EMSResultBox(
-                          title: 'Practice goal',
-                          message: 'Pump → Release → First sound = SYS → Last sound = DIA.',
-                          kind: EMSResultKind.info,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
                         Center(
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 360),
@@ -639,10 +635,6 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                         ),
                         const SizedBox(height: AppSpacing.md),
                         Text('Pressure: ${currentPressure.toStringAsFixed(0)} mmHg', textAlign: TextAlign.center, style: context.textStyles.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
-                        if (_deflationCoach != null) ...[
-                          const SizedBox(height: 12),
-                          EMSResultBox(title: 'Coaching', message: _deflationCoach!, kind: EMSResultKind.info),
-                        ],
                         const SizedBox(height: AppSpacing.lg),
                         Row(
                           children: [
@@ -802,6 +794,17 @@ class _BloodPressureSimulatorPageState extends State<BloodPressureSimulatorPage>
                       onTap: () {
                         context.read<AppState>().setMode(TrainingMode.learn);
                         context.go('${AppRoutes.bloodPressure}?flow=tutorial');
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _BpChoiceCard(
+                      icon: Icons.back_hand,
+                      title: 'Palpation Demo',
+                      subtitle: 'Learn systolic BP by palpation (radial pulse return).',
+                      buttonText: 'Start Palpation Demo',
+                      onTap: () {
+                        context.read<AppState>().setMode(TrainingMode.learn);
+                        context.go('${AppRoutes.bloodPressure}?flow=tutorial&method=palpation');
                       },
                     ),
                     const SizedBox(height: 14),

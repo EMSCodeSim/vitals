@@ -39,7 +39,7 @@ class LearnVitalsHubPage extends StatelessWidget {
                             title: 'Pulse',
                             subtitle: 'Estimate rate and connect pulse quality to perfusion.',
                             icon: Icons.favorite,
-                            onTap: () => context.push(AppRoutes.pulseTest),
+                            onTap: () => context.push(AppRoutes.pulseDiagram),
                           ),
                           const SizedBox(height: 10),
                           _PracticeLinkTile(
