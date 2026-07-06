@@ -18,6 +18,7 @@ import 'package:emscode_sim_vitals/learn_vitals/full_vitals_set_practice_page.da
 import 'package:emscode_sim_vitals/learn_vitals/vital_lesson_page.dart';
 import 'package:emscode_sim_vitals/assessment_tools/assessment_tools_hub_page.dart';
 import 'package:emscode_sim_vitals/assessment_tools/tool_lesson_page.dart';
+import 'package:emscode_sim_vitals/assessment_tools/abc_assessment_simulator_page.dart';
 import 'package:emscode_sim_vitals/walkthrough/walkthrough_home_page.dart';
 import 'package:emscode_sim_vitals/walkthrough/walkthrough_run_page.dart';
 import 'package:emscode_sim_vitals/cases/patient_assessment_cases_page.dart';
@@ -101,6 +102,12 @@ class AppRouter {
         path: AppRoutes.assessmentTools,
         name: 'assessmentTools',
         pageBuilder: (context, state) => const MaterialPage(child: AssessmentToolsHubPage()),
+      ),
+
+      GoRoute(
+        path: AppRoutes.abcAssessment,
+        name: 'abcAssessment',
+        pageBuilder: (context, state) => const MaterialPage(child: ABCAssessmentSimulatorPage()),
       ),
       GoRoute(
         path: '${AppRoutes.assessmentTools}/:id',
@@ -238,6 +245,7 @@ class AppRoutes {
   static const String learnVitals = '/learn-vitals';
   static const String fullVitalsSet = '/learn-vitals/full-set';
   static const String assessmentTools = '/assessment-tools';
+  static const String abcAssessment = '/abc-assessment';
   static const String treatments = '/treatments';
   static const String walkthrough = '/walkthrough';
   static const String cases = '/cases';
