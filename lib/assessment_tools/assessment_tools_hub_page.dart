@@ -84,6 +84,13 @@ class AssessmentToolsHubPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           _QuickActionTile(
+                            title: 'Primary Survey Simulator',
+                            subtitle: 'General impression, LOC, life threats, A/B, circulation, and transport priority.',
+                            icon: Icons.fact_check_rounded,
+                            onTap: () => context.push(AppRoutes.primarySurvey),
+                          ),
+                          const SizedBox(height: 10),
+                          _QuickActionTile(
                             title: 'ABC Assessment Simulator',
                             subtitle: 'Tap airway, breathing, circulation and score the first actions.',
                             icon: Icons.health_and_safety_rounded,

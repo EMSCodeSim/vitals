@@ -217,9 +217,9 @@ class _SceneSizeUpSimulatorPageState extends State<SceneSizeUpSimulatorPage> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: () => context.push(AppRoutes.abcAssessment),
-                          icon: const Icon(Icons.air_rounded),
-                          label: const Text('Continue to ABC'),
+                          onPressed: () => context.push(AppRoutes.primarySurvey),
+                          icon: const Icon(Icons.fact_check_rounded),
+                          label: const Text('Continue to Primary'),
                         ),
                       ),
                     ],
