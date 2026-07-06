@@ -20,6 +20,7 @@ import 'package:emscode_sim_vitals/assessment_tools/assessment_tools_hub_page.da
 import 'package:emscode_sim_vitals/assessment_tools/tool_lesson_page.dart';
 import 'package:emscode_sim_vitals/assessment_tools/abc_assessment_simulator_page.dart';
 import 'package:emscode_sim_vitals/assessment_tools/scene_size_up_simulator_page.dart';
+import 'package:emscode_sim_vitals/assessment_tools/primary_survey_simulator_page.dart';
 import 'package:emscode_sim_vitals/walkthrough/walkthrough_home_page.dart';
 import 'package:emscode_sim_vitals/walkthrough/walkthrough_run_page.dart';
 import 'package:emscode_sim_vitals/cases/patient_assessment_cases_page.dart';
@@ -109,6 +110,12 @@ class AppRouter {
         path: AppRoutes.sceneSizeUp,
         name: 'sceneSizeUp',
         pageBuilder: (context, state) => const MaterialPage(child: SceneSizeUpSimulatorPage()),
+      ),
+
+      GoRoute(
+        path: AppRoutes.primarySurvey,
+        name: 'primarySurvey',
+        pageBuilder: (context, state) => const MaterialPage(child: PrimarySurveySimulatorPage()),
       ),
 
       GoRoute(
@@ -253,6 +260,7 @@ class AppRoutes {
   static const String fullVitalsSet = '/learn-vitals/full-set';
   static const String assessmentTools = '/assessment-tools';
   static const String sceneSizeUp = '/scene-size-up';
+  static const String primarySurvey = '/primary-survey';
   static const String abcAssessment = '/abc-assessment';
   static const String treatments = '/treatments';
   static const String walkthrough = '/walkthrough';
