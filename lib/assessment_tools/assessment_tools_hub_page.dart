@@ -77,6 +77,13 @@ class AssessmentToolsHubPage extends StatelessWidget {
                       child: Column(
                         children: [
                           _QuickActionTile(
+                            title: 'ABC Assessment Simulator',
+                            subtitle: 'Tap airway, breathing, circulation and score the first actions.',
+                            icon: Icons.health_and_safety_rounded,
+                            onTap: () => context.push(AppRoutes.abcAssessment),
+                          ),
+                          const SizedBox(height: 10),
+                          _QuickActionTile(
                             title: 'Patient Assessment Walkthrough',
                             subtitle: 'One step on screen at a time.',
                             icon: Icons.route,
